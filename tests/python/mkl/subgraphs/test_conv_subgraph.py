@@ -107,7 +107,6 @@ def test_pos_conv_add2(no_bias, data_shape):
 @pytest.mark.parametrize('alg,quantize', [
     ("relu", False), #TODO(bgawrych): investigate
     ("sigmoid", True),
-    ("log_sigmoid", False),
     ("tanh", False), #TODO(bgawrych): investigate
     #("softrelu", True), #TODO(bgawrych): bug in oneDNN with AVX
     ("relu6", False), #TODO(bgawrych): investigate
@@ -148,7 +147,6 @@ def test_pos_conv_act_add(data_shape, alg, quantize, use_bias):
 @pytest.mark.parametrize('alg,quantize', [
     ("relu", True),
     ("sigmoid", True),
-    ("log_sigmoid", True),
     ("tanh", True),
     ("softrelu", True),
     ("relu6", True),
@@ -185,7 +183,6 @@ def test_pos_conv_bn_act(use_bias, data_shape, alg, quantize):
 @pytest.mark.parametrize('alg,quantize', [
     ("relu", True),
     ("sigmoid", True),
-    ("log_sigmoid", True),
     ("tanh", True),
     #("softrelu", True), #TODO(bgawrych): failing fusion check - difference in random single element
     ("relu6", True),
@@ -292,7 +289,6 @@ def test_pos_concat_scale_align(data_shape, out_type):
 @pytest.mark.parametrize('alg,quantize', [
     ("relu", True),
     ("sigmoid", True),
-    ("log_sigmoid", True),
     ("tanh", True),
     ("softrelu", True),
     ("relu6", True),

@@ -43,7 +43,6 @@ TEST(ACTIVATION_PERF, ExecuteBidirectional) {
   vector<string> activations = {
     "relu",
     "sigmoid",
-    "log_sigmoid",
     "tanh",
     "softrelu",
     "softsign"
