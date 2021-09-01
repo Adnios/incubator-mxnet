@@ -125,6 +125,8 @@ struct EngineOprSeg {
 using MemoryPlanVector = std::vector<MemoryPlanInfo>;
 using CachedOpMonCallback = std::function<void(const char*, const char*, void*)>;
 
+static std::unordered_set<std::string> cached_seg_opr_names_;
+
 inline Context GetContext(const nnvm::NodeAttrs& attrs,
                 const std::vector<NDArray*>& inputs,
                 const std::vector<NDArray*>& outputs,
@@ -682,6 +684,7 @@ inline void PushFCompute(const FCompute& fn,
     // execute without engine
     run(RunContext{ctx, nullptr, nullptr, false});
   } else {
+    LOG(INFO) << "PushFCompute " << op->name.c_str() << " " << attrs.name.c_str();
     Engine::Get()->PushSync(
     run, ctx, read_vars, write_vars, FnProperty::kNormal,
     0, op->name.c_str());
@@ -706,6 +709,7 @@ inline void PushFComputeEx(const FComputeEx& fn,
   const auto cross_device_copy = exec_type == ExecType::kCrossDeviceCopy;
   std::vector<NDArray *> inputs, outputs;
   DerefInputOutput(p_inputs, p_outputs, &inputs, &outputs);
+  auto iter = cached_seg_opr_names_.insert(op->name).first;
   const auto& run = [=](RunContext rctx) {
       OpContext opctx{need_grad, is_train, rctx, engine::CallbackOnComplete(), requested};
       REDEFINE_INPUTS_OUTPUTS(inputs, outputs, inputsA, outputsA);
@@ -720,8 +724,9 @@ inline void PushFComputeEx(const FComputeEx& fn,
     run(RunContext{ctx, nullptr, nullptr, false});
   } else {
     CHECK(exec_type == ExecType::kSync);
+    LOG(INFO) << "PushFComputeEx op->name: " << op->name.c_str() << " attrs.name:" << attrs.name.c_str() << " iter: " << iter->c_str();
     Engine::Get()->PushSync(run, ctx, read_vars, write_vars, FnProperty::kNormal,
-                            0, op->name.c_str());
+                            0, *iter != "" ? iter->c_str() : op->name.c_str());
   }
 }
 
@@ -769,12 +774,14 @@ inline void PushOperator(const OpStatePtr& state,
       RunContext rctx{ctx, nullptr, nullptr, false};
       run(rctx, engine::CallbackOnComplete());
     } else if (exec_type == ExecType::kSync) {
+      LOG(INFO) << "PushOperator_1 " << op->name.c_str() << " " << attrs.name.c_str();
       Engine::Get()->PushSync(
           [=](RunContext rctx) { run(rctx, engine::CallbackOnComplete()); },
           ctx, read_vars, write_vars, FnProperty::kNormal, 0,
           op->name.c_str());
     } else {
       CHECK(exec_type == ExecType::kAsync);
+      LOG(INFO) << "PushOperator_2 " << op->name.c_str() << " " << attrs.name.c_str();
       Engine::Get()->PushAsync(run, ctx, read_vars, write_vars,
                                FnProperty::kAsync, 0,
                                op->name.c_str());
@@ -818,6 +825,7 @@ inline void PushOperator(const OpStatePtr& state,
       RunContext rctx{ctx, nullptr, nullptr, false};
       run(rctx, engine::CallbackOnComplete());
     } else if (exec_type == ExecType::kSync) {
+      LOG(INFO) << "PushOperator_3 " << op->name.c_str() << " " << attrs.name.c_str();
       Engine::Get()->PushSync(
           [=](RunContext rctx) {
             run(rctx, engine::CallbackOnComplete());
@@ -825,6 +833,7 @@ inline void PushOperator(const OpStatePtr& state,
           0, op->name.c_str());
     } else {
       CHECK(exec_type == ExecType::kAsync);
+      LOG(INFO) << "PushOperator_4 " << op->name.c_str() << " " << attrs.name.c_str();
       Engine::Get()->PushAsync(
           run, ctx, read_vars, write_vars, FnProperty::kAsync,
           0, op->name.c_str());

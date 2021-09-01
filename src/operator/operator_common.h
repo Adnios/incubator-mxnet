@@ -394,6 +394,7 @@ inline nnvm::ObjectPtr MakeNode(
   auto p = nnvm::Node::Create();
   p->attrs.op = nnvm::Op::Get(op_name);
   p->attrs.name = name;
+  LOG(INFO) << "operator_common.h MakeNode name=" << name;
   if (dict != nullptr) p->attrs.dict = *dict;
   if (inputs != nullptr) p->inputs = *inputs;
   if (fwd_node != nullptr) {

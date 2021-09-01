@@ -236,6 +236,7 @@ void Imperative::RecordOp(
   // if node name is empty or node name is equal to op name - name it with unique name
   if (node->attrs.name == "" || node->attrs.op->name == node->attrs.name) {
     node->attrs.name = "node_" + std::to_string(node_count_++);
+    LOG(INFO) << "RecordOP " << node->attrs.name; // not working
   } else {
     node_count_++;
   }
@@ -330,6 +331,7 @@ void Imperative::RecordDeferredCompute(nnvm::NodeAttrs &&attrs,
   // if node name is empty or node name is equal to op name - name it with unique name
   if (node->attrs.name == "" || node->attrs.op->name == node->attrs.name) {
     node->attrs.name = "node_" + std::to_string(node_count_++);
+    LOG(INFO) << "RecordOP " << node->attrs.name; // not working
   } else {
     node_count_++;
   }
