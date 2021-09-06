@@ -234,9 +234,10 @@ void Imperative::RecordOp(
   nnvm::ObjectPtr node = nnvm::Node::Create();
   node->attrs = std::move(attrs);
   // if node name is empty or node name is equal to op name - name it with unique name
+  LOG(INFO) << "RecordOP attrs:" << node->attrs.name << " op:" << node->attrs.op->name; // adnios
   if (node->attrs.name == "" || node->attrs.op->name == node->attrs.name) {
     node->attrs.name = "node_" + std::to_string(node_count_++);
-    LOG(INFO) << "RecordOP " << node->attrs.name; // not working
+    // LOG(INFO) << "RecordOP " << node->attrs.name; // not working
   } else {
     node_count_++;
   }
