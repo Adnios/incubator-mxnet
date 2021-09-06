@@ -684,7 +684,7 @@ inline void PushFCompute(const FCompute& fn,
     // execute without engine
     run(RunContext{ctx, nullptr, nullptr, false});
   } else {
-    LOG(INFO) << "PushFCompute " << op->name.c_str() << " " << attrs.name.c_str();
+    // LOG(INFO) << "PushFCompute " << op->name.c_str() << " " << attrs.name.c_str();
     Engine::Get()->PushSync(
     run, ctx, read_vars, write_vars, FnProperty::kNormal,
     0, op->name.c_str());
@@ -724,7 +724,7 @@ inline void PushFComputeEx(const FComputeEx& fn,
     run(RunContext{ctx, nullptr, nullptr, false});
   } else {
     CHECK(exec_type == ExecType::kSync);
-    LOG(INFO) << "PushFComputeEx op->name: " << op->name.c_str() << " attrs.name:" << attrs.name.c_str() << " iter: " << iter->c_str();
+    // LOG(INFO) << "PushFComputeEx op->name: " << op->name.c_str() << " attrs.name:" << attrs.name.c_str() << " iter: " << iter->c_str();
     Engine::Get()->PushSync(run, ctx, read_vars, write_vars, FnProperty::kNormal,
                             0, *iter != "" ? iter->c_str() : op->name.c_str());
   }
