@@ -240,6 +240,7 @@ void Imperative::RecordOp(
   // RecordOP attrs: op:pick
   // RecordOP attrs: op:_npi_negati
   // RecordOP attrs: op:_npi_mean
+  LOG(INFO) << "RecordOP attrs:" << node->attrs.name << " op:" << node->attrs.op->name; // adnios
   if (node->attrs.name == "" || node->attrs.op->name == node->attrs.name) {
     node->attrs.name = "node_" + std::to_string(node_count_++);
     // LOG(INFO) << "RecordOP " << node->attrs.name; // not working
