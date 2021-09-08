@@ -410,7 +410,7 @@ inline void PushFCompute(const FCompute& fn,
         rctx.get_stream<gpu>()->Wait();
       }
     }, ctx, read_vars, write_vars, FnProperty::kNormal,
-    0, op->name.c_str());
+    0, attrs.name != "" ? attrs.name.c_str() : op->name.c_str());
 }
 
 inline void PushFComputeEx(const FComputeEx& fn,

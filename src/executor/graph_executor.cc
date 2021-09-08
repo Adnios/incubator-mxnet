@@ -1085,7 +1085,7 @@ void GraphExecutor::InitCachedOps() {
   for (uint32_t nid = 0; nid < idx.num_nodes(); ++nid) {
     const auto& inode = idx[nid];
     if (inode.source->is_variable()) continue;
-    op_nodes_[nid].opr_name = inode.source->op()->name.c_str();
+    op_nodes_[nid].opr_name = inode.source->attrs.name.c_str();
     if (skip_plus_node.at(nid)) {
       op_nodes_[nid].skip_exec_node = true; continue;
     }
