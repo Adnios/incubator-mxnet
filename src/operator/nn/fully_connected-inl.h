@@ -37,6 +37,9 @@
 #include "../linalg.h"
 #include "../../common/utils.h"
 
+//! herewj
+#include <unistd.h>
+
 namespace mxnet {
 namespace op {
 
@@ -52,6 +55,10 @@ struct FullyConnectedParam : public dmlc::Parameter<FullyConnectedParam> {
   int num_hidden;
   bool no_bias;
   bool flatten;
+  // herewj
+  bool virtual_compute;
+  uint64_t sleep_time;
+  uint64_t backward_sleep_time;
   DMLC_DECLARE_PARAMETER(FullyConnectedParam) {
     // TODO(bing) add support for boolean
     DMLC_DECLARE_FIELD(num_hidden).set_lower_bound(1)
@@ -60,11 +67,21 @@ struct FullyConnectedParam : public dmlc::Parameter<FullyConnectedParam> {
     .describe("Whether to disable bias parameter.");
     DMLC_DECLARE_FIELD(flatten).set_default(true)
     .describe("Whether to collapse all but the first axis of the input data tensor.");
+    //! herewj
+    DMLC_DECLARE_FIELD(virtual_compute).set_default(false)
+    .describe("Whether to disable compute.");
+    DMLC_DECLARE_FIELD(sleep_time).set_default(0)
+    .describe("When virtual_compute is true, the sleeping time");
+    DMLC_DECLARE_FIELD(backward_sleep_time).set_default(0)
+    .describe("When virtual_compute is true, the backward sleeping time");
   }
   bool operator==(const FullyConnectedParam& other) const {
     return this->num_hidden == other.num_hidden &&
            this->no_bias == other.no_bias &&
-           this->flatten == other.flatten;
+           this->flatten == other.flatten &&
+           this->virtual_compute == other.virtual_compute &&
+           this->sleep_time == other.sleep_time;
+           this->backward_sleep_time == other.backward_sleep_time;
   }
 };
 
@@ -185,10 +202,22 @@ void FullyConnectedCompute(const nnvm::NodeAttrs& attrs,
 
   switch (dtype) {
   case mshadow::kFloat32:
-    FCForward<xpu, float>(ctx, param, inputs, req, outputs);
+	  // herewj
+    if(param.virtual_compute == false) {
+      FCForward<xpu, float>(ctx, param, inputs, req, outputs);
+    } else {
+      useconds_t time = param.sleep_time;
+      usleep(time);
+    }
     break;
   case mshadow::kFloat64:
-    FCForward<xpu, double>(ctx, param, inputs, req, outputs);
+	  // herewj
+    if(param.virtual_compute == false) {
+      FCForward<xpu, double>(ctx, param, inputs, req, outputs);
+    } else {
+      useconds_t time = param.sleep_time;
+      usleep(time);
+    }
     break;
   case mshadow::kFloat16:
     LOG(FATAL) << "float16 fully connected layer is currently"
@@ -217,10 +246,22 @@ void FullyConnectedGradCompute(const nnvm::NodeAttrs& attrs,
 
   switch (dtype) {
   case mshadow::kFloat32:
-    FCBackward<xpu, float>(ctx, param, out_grad, in_data, req, outputs);
+	  // herewj
+    if(param.virtual_compute == false) {
+      FCBackward<xpu, float>(ctx, param, out_grad, in_data, req, outputs);
+    } else {
+      useconds_t time = param.backward_sleep_time;
+      usleep(time);
+    }
     break;
   case mshadow::kFloat64:
-    FCBackward<xpu, double>(ctx, param, out_grad, in_data, req, outputs);
+	  // herewj
+    if(param.virtual_compute == false) {
+      FCBackward<xpu, double>(ctx, param, out_grad, in_data, req, outputs);
+    } else {
+      useconds_t time = param.backward_sleep_time;
+      usleep(time);
+    }
     break;
   case mshadow::kFloat16:
     LOG(FATAL) << "float16 fully connected layer is currently"
@@ -241,6 +282,10 @@ struct hash<mxnet::op::FullyConnectedParam> {
     ret = dmlc::HashCombine(ret, val.num_hidden);
     ret = dmlc::HashCombine(ret, val.no_bias);
     ret = dmlc::HashCombine(ret, val.flatten);
+    //! herewj
+    ret = dmlc::HashCombine(ret, val.virtual_compute);
+    ret = dmlc::HashCombine(ret, val.sleep_time);
+    ret = dmlc::HashCombine(ret, val.backward_sleep_time);
     return ret;
   }
 };

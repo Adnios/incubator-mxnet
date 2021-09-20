@@ -44,6 +44,8 @@
 #include "../linalg.h"
 #include "./im2col.h"
 
+//! herewj
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -64,6 +66,10 @@ struct ConvolutionParam : public dmlc::Parameter<ConvolutionParam> {
   uint32_t num_group;
   uint64_t workspace;
   bool no_bias;
+  //! herewj
+  bool virtual_compute;
+  uint64_t sleep_time;
+  uint64_t backward_sleep_time;
   dmlc::optional<int> cudnn_tune;
   bool cudnn_off;
   dmlc::optional<int> layout;
@@ -87,6 +93,13 @@ struct ConvolutionParam : public dmlc::Parameter<ConvolutionParam> {
               "`limited_workspace` strategy is used.");
     DMLC_DECLARE_FIELD(no_bias).set_default(false)
     .describe("Whether to disable bias parameter.");
+    //! herewj
+    DMLC_DECLARE_FIELD(virtual_compute).set_default(false)
+    .describe("Whether to disable compute.");
+    DMLC_DECLARE_FIELD(sleep_time).set_default(0)
+    .describe("When virtual_compute is true, the sleeping time");
+    DMLC_DECLARE_FIELD(backward_sleep_time).set_default(0)
+    .describe("When virtual_compute is true, the backward sleeping time");
     DMLC_DECLARE_FIELD(cudnn_tune)
     .add_enum("off", conv::kOff)
     .add_enum("limited_workspace", conv::kLimited)
@@ -112,6 +125,7 @@ struct ConvolutionParam : public dmlc::Parameter<ConvolutionParam> {
   }
 
   bool operator==(const ConvolutionParam& other) const {
+    //herewj
     return this->kernel == other.kernel &&
            this->stride == other.stride &&
            this->dilate == other.dilate &&
@@ -121,6 +135,9 @@ struct ConvolutionParam : public dmlc::Parameter<ConvolutionParam> {
            this->workspace == other.workspace &&
            this->no_bias == other.no_bias &&
            this->cudnn_tune == other.cudnn_tune &&
+           this->virtual_compute == other.virtual_compute &&
+           this->sleep_time == other.sleep_time &&
+           this->backward_sleep_time == other.backward_sleep_time &&
            this->cudnn_off == other.cudnn_off &&
            this->layout == other.layout;
   }
@@ -146,6 +163,10 @@ struct hash<mxnet::op::ConvolutionParam> {
     ret = dmlc::HashCombine(ret, val.num_group);
     ret = dmlc::HashCombine(ret, val.workspace);
     ret = dmlc::HashCombine(ret, val.no_bias);
+    //! herewj
+    ret = dmlc::HashCombine(ret, val.virtual_compute);
+    ret = dmlc::HashCombine(ret, val.sleep_time);
+    ret = dmlc::HashCombine(ret, val.backward_sleep_time);
     ret = dmlc::HashCombine(ret, val.cudnn_tune);
     ret = dmlc::HashCombine(ret, val.cudnn_off);
     ret = dmlc::HashCombine(ret, val.layout);
@@ -393,6 +414,8 @@ class ConvolutionOp {
   index_t num_kernels_col2im_;
   bool bias_term_;  // has bias term?
   bool is_1x1_;
+  // Here we don't need initialize 'sleep' and 'compute'. Because ConvolutionOp
+  // is used for real Forward and Backward.
 };  // class ConvolutionOp
 
 template<typename xpu>
@@ -403,8 +426,26 @@ void ConvolutionCompute(const nnvm::NodeAttrs& attrs,
   const ConvolutionParam& param = nnvm::get<ConvolutionParam>(attrs.parsed);
   MSHADOW_REAL_TYPE_SWITCH(inputs[conv::kData].type_flag_, DType, {
     ConvolutionOp<xpu, DType> op;
-    op.Init(param);
-    op.Forward(ctx, inputs, req, outputs);
+	// herewj cpu 部分，gpu部分需要再修改.cu
+    if(param.virtual_compute == false) {
+        op.Init(param);
+        op.Forward(ctx, inputs, req, outputs);
+    }
+    else {
+        // https://pubs.opengroup.org/onlinepubs/007908799/xsh/usleep.html
+        useconds_t time = param.sleep_time;
+        // LOG(INFO) << time;
+        // unsigned int microseconds = 30000;
+        // usleep(microseconds);
+        // the cause may be microsecond
+        usleep(time);
+        // above method may have some trouble, such as, block all the thread
+        // https://stackoverflow.com/questions/4184468/sleep-for-milliseconds
+        // http://www.cplusplus.com/reference/thread/this_thread/sleep_for/
+        // #include <chrono>
+        // #include <thread>
+        // std::this_thread::sleep_for(std::chrono::milliseconds(time)); // microseconds
+    }
   });
 }
 
@@ -420,8 +461,19 @@ void ConvolutionGradCompute(const nnvm::NodeAttrs& attrs,
 
   MSHADOW_REAL_TYPE_SWITCH(out_grad.type_flag_, DType, {
     ConvolutionOp<xpu, DType> op;
-    op.Init(param);
-    op.Backward(ctx, std::vector<TBlob>{out_grad}, in_data, req, in_grad);
+    // herewj
+    if(param.virtual_compute == false) {
+      op.Init(param);
+      op.Backward(ctx, std::vector<TBlob>{out_grad}, in_data, req, in_grad);
+    }
+    else {
+      // https://pubs.opengroup.org/onlinepubs/007908799/xsh/usleep.html
+      useconds_t time = param.backward_sleep_time;
+      // LOG(INFO) << time;
+      // unsigned int microseconds = 30000;
+      // usleep(microseconds);
+      usleep(time);
+    }
   });
 }
 

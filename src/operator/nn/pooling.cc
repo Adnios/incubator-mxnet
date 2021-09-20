@@ -413,6 +413,9 @@ For each window ``X``, the mathematical expression for Lp pooling is:
                            ElemwiseGradUseInOut{"_backward_Pooling"})
 .add_argument("data", "NDArray-or-Symbol",
               "Input data to the pooling operator.")
+// .add_argument("virtual_compute", "NDArray-or-Symbol", "Virtual Compute")//!herewj
+// .add_argument("sleep_time", "NDArray-or-Symbol", "Sleep time")//!herewj
+// .add_argument("backward_sleep_time", "NDArray-or-Symbol", "Backward Sleep time")//!herewj
 .add_arguments(PoolingParam::__FIELDS__());
 
 NNVM_REGISTER_OP(_backward_Pooling)

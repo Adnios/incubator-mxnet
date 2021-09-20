@@ -29,6 +29,9 @@
 #include "./cudnn/cudnn_pooling-inl.h"
 #endif  // MXNET_USE_CUDNN
 
+//! herewj
+#include <unistd.h>
+
 namespace mxnet {
 namespace op {
 
@@ -61,7 +64,13 @@ void PoolingCompute<gpu>(const nnvm::NodeAttrs& attrs,
       switch (param.pool_type) {
         case pool_enum::kMaxPooling:
         case pool_enum::kAvgPooling:
-          GetCuDNNPoolingOp<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
+          // herewj
+          if(param.virtual_compute == false) {
+            GetCuDNNPoolingOp<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
+          } else {
+            useconds_t time = param.sleep_time;
+            usleep(time);
+          }
           return;
         case pool_enum::kSumPooling:
           LOG(WARNING) << "Sum pooling is not supported by cudnn, MXNet sum pooling is applied.";
@@ -80,8 +89,14 @@ void PoolingCompute<gpu>(const nnvm::NodeAttrs& attrs,
         || pool_enum::kSumPooling == param.pool_type
         || pool_enum::kLpPooling == param.pool_type) {
       PoolingOp<gpu, DType> op;
-      op.Init(param);
-      op.Forward(ctx, inputs[0], req[0], outputs[0]);
+      // herewj
+      if(param.virtual_compute == false) {
+        op.Init(param);
+        op.Forward(ctx, inputs[0], req[0], outputs[0]);
+      } else {
+        useconds_t time = param.sleep_time;
+        usleep(time);
+      }
     } else {
       LOG(FATAL) << "unknown pooling type";
     }
@@ -116,9 +131,15 @@ void PoolingGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
       switch (param.pool_type) {
         case pool_enum::kMaxPooling:
         case pool_enum::kAvgPooling:
-          GetCuDNNPoolingOp<DType>(param).Backward(ctx, inputs[ograd_idx],
-                                                   inputs[in_data_idx], inputs[out_data_idx],
-                                                   req[0], outputs[0]);
+          // herewj
+          if(param.virtual_compute == false) {
+            GetCuDNNPoolingOp<DType>(param).Backward(ctx, inputs[ograd_idx],
+                                                  inputs[in_data_idx], inputs[out_data_idx],
+                                                  req[0], outputs[0]);
+          } else {
+            useconds_t time = param.sleep_time;
+            usleep(time);
+          }
           return;
         case pool_enum::kSumPooling:
           LOG(WARNING) << "Sum pooling is not supported by cudnn, MXNet sum pooling is applied.";
@@ -137,9 +158,15 @@ void PoolingGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
         || pool_enum::kSumPooling == param.pool_type
         || pool_enum::kLpPooling == param.pool_type) {
       PoolingOp<gpu, DType> op;
-      op.Init(param);
-      op.Backward(ctx, inputs[ograd_idx], inputs[in_data_idx],
-                  inputs[out_data_idx], req[0], outputs[0]);
+      // herewj
+      if(param.virtual_compute == false) {
+       op.Init(param);
+       op.Backward(ctx, inputs[ograd_idx], inputs[in_data_idx],
+                   inputs[out_data_idx], req[0], outputs[0]);
+      } else {
+        useconds_t time = param.sleep_time;
+        usleep(time);
+      }
     } else {
       LOG(FATAL) << "unknown pooling type";
     }
