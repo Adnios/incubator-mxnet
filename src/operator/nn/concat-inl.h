@@ -134,11 +134,18 @@ void ConcatCompute(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
                    const std::vector<OpReqType>& req,
                    const std::vector<TBlob>& outputs) {
   const ConcatParam& param = nnvm::get<ConcatParam>(attrs.parsed);
-  MSHADOW_TYPE_SWITCH(inputs[concat_enum::kData0].type_flag_, DType, {
-    ConcatOp<xpu, DType> op;
-    op.Init(param);
-    op.Forward(ctx, inputs, req, outputs);
-  });
+  // 同 activation
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_TYPE_SWITCH(inputs[concat_enum::kData0].type_flag_, DType, {
+      ConcatOp<xpu, DType> op;
+      op.Init(param);
+      op.Forward(ctx, inputs, req, outputs);
+    });
+  }
 }
 
 template<typename xpu>
@@ -147,11 +154,17 @@ void ConcatGradCompute(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
                        const std::vector<OpReqType>& req,
                        const std::vector<TBlob>& outputs) {
   const ConcatParam& param = nnvm::get<ConcatParam>(attrs.parsed);
-  MSHADOW_TYPE_SWITCH(inputs[concat_enum::kOut].type_flag_, DType, {
-    ConcatOp<xpu, DType> op;
-    op.Init(param);
-    op.Backward(ctx, inputs[concat_enum::kOut], req, outputs);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_TYPE_SWITCH(inputs[concat_enum::kOut].type_flag_, DType, {
+      ConcatOp<xpu, DType> op;
+      op.Init(param);
+      op.Backward(ctx, inputs[concat_enum::kOut], req, outputs);
+    });
+  }
 }
 
 /*!

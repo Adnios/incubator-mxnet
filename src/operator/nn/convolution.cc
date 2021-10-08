@@ -495,7 +495,6 @@ There are other options to tune the performance.
 .add_argument("weight", "NDArray-or-Symbol", "Weight matrix.")
 .add_argument("bias", "NDArray-or-Symbol", "Bias parameter.")
 // 名字和inh.cc中的不同需要在写一下
-// .add_argument("virtual_compute", "NDArray-or-Symbol", "Virtual Compute")//!herewj
 // .add_argument("sleep_time", "NDArray-or-Symbol", "Sleep time")//!herewj
 // .add_argument("backward_sleep_time", "NDArray-or-Symbol", "Backward Sleep time")//!herewj
 .add_arguments(ConvolutionParam::__FIELDS__());

@@ -157,7 +157,11 @@ void ConvolutionCompute<gpu>(const nnvm::NodeAttrs& attrs,
       auto add_to_weight = false;
       // ! 注意这里用的是CuDNNConvolutionOp
       // herewj
-      if(param.virtual_compute == false) {
+      const char *type = getenv("MXNET_EMULATOR_TYPE");
+      const bool default_emulator = (type == nullptr);
+      if (default_emulator) type = "Naive";
+      std::string strategy = type;
+      if (strategy == "Naive") {
         CuDNNConvolutionOp<DType> &op = GetCuDNNConvOp<DType>(param,
             compute_type, compute_type, in_shape, out_shape, ctx.run_ctx, add_to_weight);
         op.Forward(ctx, inputs, req, outputs);
@@ -247,12 +251,16 @@ void ConvolutionGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
         in_shape[i] = in_data[i].shape_;
       auto add_to_weight = req[conv::kWeight] == kAddTo;
       // herewj
-      if(param.virtual_compute == false) {
+      const char *type = getenv("MXNET_EMULATOR_TYPE");
+      const bool default_emulator = (type == nullptr);
+      if (default_emulator) type = "Naive";
+      std::string strategy = type;
+      if (strategy == "Naive") {
         CuDNNConvolutionOp<DType> &op = GetCuDNNConvOp<DType>(param,
             compute_type, compute_type, in_shape, out_shape, ctx.run_ctx, add_to_weight);
         op.Backward(ctx, std::vector<TBlob>{out_grad}, in_data, req, in_grad);
       } else {
-        useconds_t time = param.sleep_time;
+        useconds_t time = param.backward_sleep_time;
         usleep(time);
       }
     }

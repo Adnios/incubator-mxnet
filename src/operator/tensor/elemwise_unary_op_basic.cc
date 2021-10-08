@@ -158,21 +158,27 @@ static void CopyEx(const nnvm::NodeAttrs& attrs,
                    const std::vector<NDArray>& outputs) {
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), 1U);
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
 #if MXNET_USE_MKLDNN == 1
-  const auto in_stype = inputs[0].storage_type();
-  const auto out_stype = outputs[0].storage_type();
-  if (inputs[0].IsMKLDNNData()) {
-    MKLDNNCopy(attrs, ctx, inputs[0], req[0], outputs[0]);
-    return;
-  } else if (in_stype == kDefaultStorage && out_stype == kDefaultStorage) {
-    // This happens if inputs are supposed to be in MKLDNN format
-    // but MKLDNN doesn't support the data type or the shape. We're
-    // forced to convert it to the default format.
-    FallBackCompute(UnaryOp::IdentityCompute<cpu>, attrs, ctx, inputs, req, outputs);
-    return;
-  }
+    const auto in_stype = inputs[0].storage_type();
+    const auto out_stype = outputs[0].storage_type();
+    if (inputs[0].IsMKLDNNData()) {
+      MKLDNNCopy(attrs, ctx, inputs[0], req[0], outputs[0]);
+      return;
+    } else if (in_stype == kDefaultStorage && out_stype == kDefaultStorage) {
+      // This happens if inputs are supposed to be in MKLDNN format
+      // but MKLDNN doesn't support the data type or the shape. We're
+      // forced to convert it to the default format.
+      FallBackCompute(UnaryOp::IdentityCompute<cpu>, attrs, ctx, inputs, req, outputs);
+      return;
+    }
 #endif
-  UnaryOp::IdentityComputeEx<cpu>(attrs, ctx, inputs, req, outputs);
+    UnaryOp::IdentityComputeEx<cpu>(attrs, ctx, inputs, req, outputs);
+  }
 }
 
 static inline bool CopyStorageType(const nnvm::NodeAttrs& attrs,
@@ -196,6 +202,7 @@ static inline bool CopyStorageType(const nnvm::NodeAttrs& attrs,
   return ret;
 }
 
+// id
 MXNET_OPERATOR_REGISTER_UNARY(_copy)
 .MXNET_DESCRIBE("Returns a copy of the input.")
 .add_alias("identity")

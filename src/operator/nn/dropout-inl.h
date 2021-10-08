@@ -375,12 +375,18 @@ void DropoutCompute(const nnvm::NodeAttrs& attrs,
                     const std::vector<TBlob>& inputs,
                     const std::vector<OpReqType>& req,
                     const std::vector<TBlob>& outputs) {
-  const DropoutParam& param = nnvm::get<DropoutParam>(attrs.parsed);
-  MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
-    DropoutOp<xpu, DType> op;
-    op.Init(param);
-    op.Forward(ctx, inputs, req, outputs);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    const DropoutParam& param = nnvm::get<DropoutParam>(attrs.parsed);
+    MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
+      DropoutOp<xpu, DType> op;
+      op.Init(param);
+      op.Forward(ctx, inputs, req, outputs);
+    });
+  }
 }
 
 template<typename xpu>
@@ -398,11 +404,17 @@ void DropoutGradCompute(const nnvm::NodeAttrs& attrs,
   out_grads[dropout::kOut] = inputs[0];
   out_data[dropout::kMask] = inputs[1];
 
-  MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
-    DropoutOp<xpu, DType> op;
-    op.Init(param);
-    op.Backward(ctx, out_grads, out_data, req, outputs);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
+      DropoutOp<xpu, DType> op;
+      op.Init(param);
+      op.Backward(ctx, out_grads, out_data, req, outputs);
+    });
+  }
 }
 
 }  // namespace op

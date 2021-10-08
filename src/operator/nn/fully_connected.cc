@@ -302,7 +302,6 @@ If ``no_bias`` is set to be true, then the ``bias`` term is ignored.
 .add_argument("data", "NDArray-or-Symbol", "Input data.")
 .add_argument("weight", "NDArray-or-Symbol", "Weight matrix.")
 .add_argument("bias", "NDArray-or-Symbol", "Bias parameter.")
-// .add_argument("virtual_compute", "NDArray-or-Symbol", "Virtual Compute")//!herewj
 // .add_argument("sleep_time", "NDArray-or-Symbol", "Sleep time")//!herewj
 // .add_argument("backward_sleep_time", "NDArray-or-Symbol", "Backward Sleep time")//!herewj
 .add_arguments(FullyConnectedParam::__FIELDS__());

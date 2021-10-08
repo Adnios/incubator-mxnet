@@ -42,7 +42,11 @@ void FullyConnectedCompute<gpu>(const nnvm::NodeAttrs& attrs,
 
   MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
     //! herewj
-    if(param.virtual_compute == false) {
+    const char *type = getenv("MXNET_EMULATOR_TYPE");
+    const bool default_emulator = (type == nullptr);
+    if (default_emulator) type = "Naive";
+    std::string strategy = type;
+    if (strategy == "Naive") {
       FCForward<gpu, DType>(ctx, param, inputs, req, outputs);
     } else {
       useconds_t time = param.sleep_time;
@@ -69,7 +73,11 @@ void FullyConnectedGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
 
   MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
     //! herewj
-    if(param.virtual_compute == false) {
+    const char *type = getenv("MXNET_EMULATOR_TYPE");
+    const bool default_emulator = (type == nullptr);
+    if (default_emulator) type = "Naive";
+    std::string strategy = type;
+    if (strategy == "Naive") {
       FCBackward<gpu, DType>(ctx, param, out_grad, in_data, req, outputs);
     } else {
       useconds_t time = param.backward_sleep_time;

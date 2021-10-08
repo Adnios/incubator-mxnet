@@ -108,9 +108,16 @@ void ElementWiseSumCompute(const nnvm::NodeAttrs& attrs,
                            const std::vector<OpReqType>& req,
                            const std::vector<TBlob>& outputs) {
   CHECK_EQ(outputs.size(), 1U);
-  MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
-      ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
-  });
+  // sum_grad cost a lot time in cpu
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
+        ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
+    });
+  }
 }
 
 template<typename xpu>
@@ -120,9 +127,15 @@ void ElementWiseSumComputeWithHalf2(const nnvm::NodeAttrs& attrs,
                                     const std::vector<OpReqType>& req,
                                     const std::vector<TBlob>& outputs) {
   CHECK_EQ(outputs.size(), 1U);
-  MSHADOW_TYPE_SWITCH_WITH_HALF2(outputs[0].type_flag_, DType, {
-      ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_TYPE_SWITCH_WITH_HALF2(outputs[0].type_flag_, DType, {
+        ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
+    });
+  }
 }
 
 }  // namespace op

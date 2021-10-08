@@ -24,25 +24,30 @@ large-scale image recognition." arXiv preprint arXiv:1409.1556 (2014).
 import mxnet as mx
 import numpy as np
 
+forward = []
+backward = []
+
 def get_feature(internel_layer, layers, filters, batch_norm = False, **kwargs):
     for i, num in enumerate(layers):
         for j in range(num):
-            internel_layer = mx.sym.Convolution(data = internel_layer, kernel=(3, 3), pad=(1, 1), num_filter=filters[i], name="conv%s_%s" %(i + 1, j + 1))
+            internel_layer = mx.sym.Convolution(data = internel_layer, kernel=(3, 3), pad=(1, 1), num_filter=filters[i], name="conv%s_%s" %(i + 1, j + 1), sleep_time=int(float(forward.pop(0)[1])*1000), backward_sleep_time=int(float(backward.pop(0)[2])*1000))
             if batch_norm:
                 internel_layer = mx.symbol.BatchNorm(data=internel_layer, name="bn%s_%s" %(i + 1, j + 1))
             internel_layer = mx.sym.Activation(data=internel_layer, act_type="relu", name="relu%s_%s" %(i + 1, j + 1))
-        internel_layer = mx.sym.Pooling(data=internel_layer, pool_type="max", kernel=(2, 2), stride=(2,2), name="pool%s" %(i + 1))
+        internel_layer = mx.sym.Pooling(data=internel_layer, pool_type="max", kernel=(2, 2), stride=(2,2), name="pool%s" %(i + 1), sleep_time=int(float(forward.pop(0)[1])*1000), backward_sleep_time=int(float(backward.pop(0)[2])*1000))
     return internel_layer
 
 def get_classifier(input_data, num_classes, **kwargs):
     flatten = mx.sym.Flatten(data=input_data, name="flatten")
-    fc6 = mx.sym.FullyConnected(data=flatten, num_hidden=4096, name="fc6")
+    fc6 = mx.sym.FullyConnected(data=flatten, num_hidden=4096, name="fc6", sleep_time=int(float(forward.pop(0)[1])*1000), backward_sleep_time=int(float(backward.pop(0)[2])*1000))
     relu6 = mx.sym.Activation(data=fc6, act_type="relu", name="relu6")
     drop6 = mx.sym.Dropout(data=relu6, p=0.5, name="drop6")
-    fc7 = mx.sym.FullyConnected(data=drop6, num_hidden=4096, name="fc7")
+    fc7 = mx.sym.FullyConnected(data=drop6, num_hidden=4096, name="fc7", sleep_time=int(float(forward.pop(0)[1])*1000), backward_sleep_time=int(float(backward.pop(0)[2])*1000))
     relu7 = mx.sym.Activation(data=fc7, act_type="relu", name="relu7")
     drop7 = mx.sym.Dropout(data=relu7, p=0.5, name="drop7")
-    fc8 = mx.sym.FullyConnected(data=drop7, num_hidden=num_classes, name="fc8")
+    fc8 = mx.sym.FullyConnected(data=drop7, num_hidden=num_classes, name="fc8", sleep_time=int(float(forward.pop(0)[1])*1000), backward_sleep_time=int(float(backward.pop(0)[2])*1000))
+
+    print("forward len:", len(forward))
     return fc8
 
 def get_symbol(num_classes, num_layers=11, batch_norm=False, dtype='float32', **kwargs):
@@ -58,6 +63,15 @@ def get_symbol(num_classes, num_layers=11, batch_norm=False, dtype='float32', **
     dtype: str, float32 or float16
         Data precision.
     """
+
+    import csv
+    # forward = []
+    # backward = []
+    csv_reader = csv.reader(open("./vgg16.csv"))
+    for line in csv_reader:
+        forward.append(line)
+        backward.append(line)
+
     vgg_spec = {11: ([1, 1, 2, 2, 2], [64, 128, 256, 512, 512]),
                 13: ([2, 2, 2, 2, 2], [64, 128, 256, 512, 512]),
                 16: ([2, 2, 3, 3, 3], [64, 128, 256, 512, 512]),

@@ -58,14 +58,18 @@ void PoolingCompute<gpu>(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), GetNumOutputs(param));
 
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
 #if MXNET_USE_CUDNN == 1
-  if (!param.cudnn_off && param.kernel.ndim() > 1) {
+    if (!param.cudnn_off && param.kernel.ndim() > 1) {
     MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
       switch (param.pool_type) {
         case pool_enum::kMaxPooling:
         case pool_enum::kAvgPooling:
           // herewj
-          if(param.virtual_compute == false) {
+          if (strategy == "Naive") {
             GetCuDNNPoolingOp<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
           } else {
             useconds_t time = param.sleep_time;
@@ -90,7 +94,7 @@ void PoolingCompute<gpu>(const nnvm::NodeAttrs& attrs,
         || pool_enum::kLpPooling == param.pool_type) {
       PoolingOp<gpu, DType> op;
       // herewj
-      if(param.virtual_compute == false) {
+      if (strategy == "Naive") {
         op.Init(param);
         op.Forward(ctx, inputs[0], req[0], outputs[0]);
       } else {
@@ -125,6 +129,10 @@ void PoolingGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
     out_data_idx = 2;
   }
 
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
 #if MXNET_USE_CUDNN == 1
   if (!param.cudnn_off && param.kernel.ndim() > 1) {
     MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
@@ -132,12 +140,12 @@ void PoolingGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
         case pool_enum::kMaxPooling:
         case pool_enum::kAvgPooling:
           // herewj
-          if(param.virtual_compute == false) {
+          if (strategy == "Naive") {
             GetCuDNNPoolingOp<DType>(param).Backward(ctx, inputs[ograd_idx],
                                                   inputs[in_data_idx], inputs[out_data_idx],
                                                   req[0], outputs[0]);
           } else {
-            useconds_t time = param.sleep_time;
+            useconds_t time = param.backward_sleep_time;
             usleep(time);
           }
           return;
@@ -159,12 +167,12 @@ void PoolingGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
         || pool_enum::kLpPooling == param.pool_type) {
       PoolingOp<gpu, DType> op;
       // herewj
-      if(param.virtual_compute == false) {
+      if (strategy == "Naive") {
        op.Init(param);
        op.Backward(ctx, inputs[ograd_idx], inputs[in_data_idx],
                    inputs[out_data_idx], req[0], outputs[0]);
       } else {
-        useconds_t time = param.sleep_time;
+        useconds_t time = param.backward_sleep_time;
         usleep(time);
       }
     } else {

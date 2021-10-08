@@ -192,7 +192,15 @@ void ActivationCompute(const nnvm::NodeAttrs& attrs,
                        const std::vector<TBlob>& outputs) {
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), 1U);
-  ActivationComputeImpl<xpu>(attrs, ctx, inputs, req, outputs);
+  // 默认naive,其他sleep,sleep时间又python端判断
+  // todo: cpu 默认sleep(0)
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    ActivationComputeImpl<xpu>(attrs, ctx, inputs, req, outputs);
+  }
 }
 
 template<typename xpu>
@@ -206,7 +214,13 @@ void ActivationGradCompute(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(inputs.size(), activation::GradNumInputs(act_type));
   CHECK_EQ(outputs.size(), 1U);
   CHECK_EQ(req.size(), 1U);
-  ActivationGradComputeImpl<xpu>(attrs, ctx, inputs, req, outputs);
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    ActivationGradComputeImpl<xpu>(attrs, ctx, inputs, req, outputs);
+  }
 }
 
 }  // namespace op

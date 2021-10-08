@@ -38,11 +38,17 @@ static void ConcatComputeExGPU(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(outputs.size(), 1U);
   CHECK_EQ(req.size(), 1U);
   if (req[0] == kNullOp) return;
-  if (common::ContainsOnlyStorage(inputs, kCSRStorage) &&
-      outputs[0].storage_type() == kCSRStorage) {
-    ConcatCSRImpl<gpu>(attrs, op_ctx, inputs, req, outputs);
-  } else {
-    LogUnimplementedOp(attrs, op_ctx, inputs, req, outputs);
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    if (common::ContainsOnlyStorage(inputs, kCSRStorage) &&
+        outputs[0].storage_type() == kCSRStorage) {
+      ConcatCSRImpl<gpu>(attrs, op_ctx, inputs, req, outputs);
+    } else {
+      LogUnimplementedOp(attrs, op_ctx, inputs, req, outputs);
+    }
   }
 }
 

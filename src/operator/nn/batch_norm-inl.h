@@ -259,10 +259,17 @@ void BatchNormCompute(const nnvm::NodeAttrs& attrs,
                              inputs.begin() + batchnorm::kInMovingMean);
   std::vector<TBlob> aux_states(inputs.begin() + batchnorm::kInMovingMean,
                                 inputs.end());
-  MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
-    BatchNormForward<xpu, DType, AccReal>(ctx, param, in_data, req, outputs,
-                                          aux_states);
-  });
+  // 同 activation
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
+      BatchNormForward<xpu, DType, AccReal>(ctx, param, in_data, req, outputs,
+                                            aux_states);
+    });
+  }
 }
 
 template<typename xpu>
@@ -273,9 +280,15 @@ void BatchNormGradCompute(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(inputs.size(), 8U);
   const BatchNormParam& param = nnvm::get<BatchNormParam>(attrs.parsed);
 
-  MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
-    BatchNormBackward<xpu, DType, AccReal>(ctx, param, inputs, req, outputs);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
+      BatchNormBackward<xpu, DType, AccReal>(ctx, param, inputs, req, outputs);
+    });
+  }
 }
 
 #if DMLC_USE_CXX11

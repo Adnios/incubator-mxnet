@@ -29,6 +29,9 @@ __date__ = '18/4/3'
 
 import mxnet as mx
 
+forward = []
+backward = []
+
 def relu6(data, prefix):
     return mx.sym.clip(data,0,6,name='%s-relu6'%prefix)
 
@@ -45,7 +48,7 @@ def mobilenet_unit(data, num_filter=1, kernel=(1, 1), stride=(1, 1), pad=(0, 0),
         stride=stride,
         pad=pad,
         no_bias=True,
-        name='%s-conv2d'%prefix)
+        name='%s-conv2d'%prefix, sleep_time=int(float(forward.pop(0)[1])*1000), backward_sleep_time=int(float(backward.pop(0)[2])*1000))
     bn = mx.sym.BatchNorm(data=conv, name='%s-batchnorm'%prefix, fix_gamma=False, use_global_stats=False, eps=1e-5)
     if if_act:
         act = relu6(bn, prefix)
@@ -191,9 +194,9 @@ class MobileNetV2(object):
         # global average pooling
         pool_size = int(self.data_wh[0] / 32)
         pool = mx.sym.Pooling(data=last_fm, kernel=(pool_size, pool_size), stride=(1, 1), 
-                              pool_type="avg", name="global_pool", global_pool=True)
+                              pool_type="avg", name="global_pool", global_pool=True, sleep_time=int(float(forward.pop(0)[1])*1000), backward_sleep_time=int(float(backward.pop(0)[2])*1000))
         flatten = mx.sym.Flatten(data=pool, name="flatten")
-        fc = mx.symbol.FullyConnected(data=flatten, num_hidden=class_num, name='fc')
+        fc = mx.symbol.FullyConnected(data=flatten, num_hidden=class_num, name='fc', sleep_time=int(float(forward.pop(0)[1])*1000), backward_sleep_time=int(float(backward.pop(0)[2])*1000))
         softmax = mx.symbol.SoftmaxOutput(data=fc, name='softmax')
         
         return softmax
@@ -212,7 +215,16 @@ class MobileNetV2(object):
             layer_out = internals[layer_out.strip() + '_output']
             return layer_out
 
-def get_symbol(num_classes=1000, multiplier=1.0):
+def get_symbol(num_classes=1000, multiplier=1.0, **kwargs):
+    import csv
+    # forward = []
+    # backward = []
+    csv_reader = csv.reader(open("./mobilenetv2.csv"))
+    for line in csv_reader:
+        forward.append(line)
+        backward.append(line)
+
     mnetgen = MobileNetV2((224,224), multiplier=multiplier)
     mnetv2_sym = mnetgen(class_num=num_classes, layer_out=None)
+    print(len(forward))
     return mnetv2_sym
