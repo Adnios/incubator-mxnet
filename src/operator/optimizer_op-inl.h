@@ -331,16 +331,22 @@ inline void SGDMomUpdate(const nnvm::NodeAttrs& attrs,
   using namespace mxnet_op;
   SGDMomParam param = nnvm::get<SGDMomParam>(attrs.parsed);
   Stream<xpu>* s = ctx.get_stream<xpu>();
-  MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
-    Tensor<xpu, 2, DType> weight = inputs[0].FlatTo2D<xpu, DType>(s);
-    Tensor<xpu, 2, DType> grad = inputs[1].FlatTo2D<xpu, DType>(s);
-    Tensor<xpu, 2, DType> mom = inputs[2].FlatTo2D<xpu, DType>(s);
-    Tensor<xpu, 2, DType> out = outputs[0].FlatTo2D<xpu, DType>(s);
-    Kernel<SGDMomKernel, xpu>::Launch(s, weight.shape_.Size(), out.dptr_, mom.dptr_, weight.dptr_,
-      grad.dptr_, static_cast<DType>(param.clip_gradient), static_cast<DType>(param.momentum),
-      static_cast<DType>(param.lr), static_cast<DType>(param.wd),
-      static_cast<DType>(param.rescale_grad), req[0]);
-    });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
+      Tensor<xpu, 2, DType> weight = inputs[0].FlatTo2D<xpu, DType>(s);
+      Tensor<xpu, 2, DType> grad = inputs[1].FlatTo2D<xpu, DType>(s);
+      Tensor<xpu, 2, DType> mom = inputs[2].FlatTo2D<xpu, DType>(s);
+      Tensor<xpu, 2, DType> out = outputs[0].FlatTo2D<xpu, DType>(s);
+      Kernel<SGDMomKernel, xpu>::Launch(s, weight.shape_.Size(), out.dptr_, mom.dptr_, weight.dptr_,
+        grad.dptr_, static_cast<DType>(param.clip_gradient), static_cast<DType>(param.momentum),
+        static_cast<DType>(param.lr), static_cast<DType>(param.wd),
+        static_cast<DType>(param.rescale_grad), req[0]);
+      });
+  }
 }
 
 template<int n_in, int n_out, int total_in>
@@ -691,19 +697,25 @@ inline void SGDMomUpdateEx(const nnvm::NodeAttrs& attrs,
   const bool valid_grad = grad.storage_type() == kRowSparseStorage;
   const bool lazy_update = param.lazy_update;
   CHECK(w_stype == out_stype) << "Inconsistent weight stype and output stype";
-  if (valid_weight && valid_grad && m_stype == w_stype) {
-    if (lazy_update) {
-      // rsp grad && m.stype = w.stype && lazy_update = true -> lazy update
-      SGDMomLazyUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
-    } else {
-      // rsp grad && m.stype = w.stype && lazy_update = false -> std update
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    if (valid_weight && valid_grad && m_stype == w_stype) {
+      if (lazy_update) {
+        // rsp grad && m.stype = w.stype && lazy_update = true -> lazy update
+        SGDMomLazyUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
+      } else {
+        // rsp grad && m.stype = w.stype && lazy_update = false -> std update
+        SGDMomStdUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
+      }
+    } else if (w_stype == kRowSparseStorage && valid_grad && m_stype == kDefaultStorage) {
+      // rsp weight, rsp grad, dns state -> std update
       SGDMomStdUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
+    } else {
+      LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
     }
-  } else if (w_stype == kRowSparseStorage && valid_grad && m_stype == kDefaultStorage) {
-    // rsp weight, rsp grad, dns state -> std update
-    SGDMomStdUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
-  } else {
-    LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
   }
 }
 
