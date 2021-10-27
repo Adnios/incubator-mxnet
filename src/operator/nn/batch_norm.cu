@@ -688,6 +688,9 @@ void BatchNormCompute<gpu>(const nnvm::NodeAttrs& attrs,
       BatchNormForward<gpu, DType, AccReal>(ctx, param, in_data, req, outputs, aux_states);
     });
 #endif
+  } else {
+		useconds_t time = param.forward_time;
+		usleep(time);
   }
 }
 
@@ -723,6 +726,9 @@ void BatchNormGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
       BatchNormBackward<gpu, DType, AccReal>(ctx, param, inputs, req, outputs);
     });
 #endif
+  } else {
+		useconds_t time = param.backward_time;
+		usleep(time);
   }
 }
 

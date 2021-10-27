@@ -23,7 +23,6 @@
  * \brief fully connect operator
 */
 #include "./fully_connected-inl.h"
-//! herewj
 #include <unistd.h>
 namespace mxnet {
 namespace op {
@@ -41,7 +40,6 @@ void FullyConnectedCompute<gpu>(const nnvm::NodeAttrs& attrs,
   int dtype = inputs[0].type_flag_;
 
   MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
-    //! herewj
     const char *type = getenv("MXNET_EMULATOR_TYPE");
     const bool default_emulator = (type == nullptr);
     if (default_emulator) type = "Naive";
@@ -49,7 +47,7 @@ void FullyConnectedCompute<gpu>(const nnvm::NodeAttrs& attrs,
     if (strategy == "Naive") {
       FCForward<gpu, DType>(ctx, param, inputs, req, outputs);
     } else {
-      useconds_t time = param.sleep_time;
+      useconds_t time = param.forward_time;
       usleep(time);
     }
   });
@@ -72,7 +70,6 @@ void FullyConnectedGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
   int dtype = inputs[0].type_flag_;
 
   MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
-    //! herewj
     const char *type = getenv("MXNET_EMULATOR_TYPE");
     const bool default_emulator = (type == nullptr);
     if (default_emulator) type = "Naive";
@@ -80,7 +77,7 @@ void FullyConnectedGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
     if (strategy == "Naive") {
       FCBackward<gpu, DType>(ctx, param, out_grad, in_data, req, outputs);
     } else {
-      useconds_t time = param.backward_sleep_time;
+      useconds_t time = param.backward_time;
       usleep(time);
     }
   });

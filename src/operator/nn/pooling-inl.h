@@ -37,8 +37,6 @@
 #include <utility>
 #include "../operator_common.h"
 #include "./pool.h"
-
-//! herewj
 #include <unistd.h>
 
 namespace mxnet {
@@ -53,8 +51,8 @@ struct PoolingParam : public dmlc::Parameter<PoolingParam> {
   int pool_type;
   int pooling_convention;
   bool global_pool;
-  uint64_t sleep_time;
-  uint64_t backward_sleep_time;
+  uint64_t forward_time;
+  uint64_t backward_time;
   bool cudnn_off;
   dmlc::optional<int> p_value;
   dmlc::optional<bool> count_include_pad;
@@ -73,14 +71,14 @@ struct PoolingParam : public dmlc::Parameter<PoolingParam> {
     DMLC_DECLARE_FIELD(global_pool).set_default(false)
     .describe("Ignore kernel size, do global pooling based on current input feature map. ");
 
-    DMLC_DECLARE_FIELD(sleep_time).set_default(0)
-    .describe("When is true, the sleeping time");
+    DMLC_DECLARE_FIELD(forward_time).set_default(0)
+    .describe("Forward pass time predicted by performance predictor");
 
-    DMLC_DECLARE_FIELD(backward_sleep_time).set_default(0)
+    DMLC_DECLARE_FIELD(backward_time).set_default(0)
     .describe("When is true, the backward sleeping time");
 
     DMLC_DECLARE_FIELD(cudnn_off).set_default(false)
-    .describe("Turn off cudnn pooling and use MXNet pooling operator. ");
+    .describe("Backward pass time predicted by performance predictor");
 
     DMLC_DECLARE_FIELD(pooling_convention).set_default(pool_enum::kValid)
     .add_enum("full", pool_enum::kFull)
@@ -112,8 +110,8 @@ struct PoolingParam : public dmlc::Parameter<PoolingParam> {
            this->pool_type          == other.pool_type &&
            this->pooling_convention == other.pooling_convention &&
            this->global_pool        == other.global_pool &&
-           this->sleep_time == other.sleep_time &&
-           this->backward_sleep_time == other.backward_sleep_time &&
+           this->forward_time				== other.forward_time &&
+           this->backward_time			== other.backward_time &&
            this->cudnn_off          == other.cudnn_off &&
            this->p_value            == other.p_value &&
            this->count_include_pad  == other.count_include_pad;
@@ -134,8 +132,8 @@ struct hash<mxnet::op::PoolingParam> {
     ret = dmlc::HashCombine(ret, val.pool_type);
     ret = dmlc::HashCombine(ret, val.pooling_convention);
     ret = dmlc::HashCombine(ret, val.global_pool);
-    ret = dmlc::HashCombine(ret, val.sleep_time);
-    ret = dmlc::HashCombine(ret, val.backward_sleep_time);
+    ret = dmlc::HashCombine(ret, val.forward_time);
+    ret = dmlc::HashCombine(ret, val.backward_time);
     ret = dmlc::HashCombine(ret, val.cudnn_off);
     ret = dmlc::HashCombine(ret, val.p_value);
     ret = dmlc::HashCombine(ret, val.count_include_pad);
@@ -286,7 +284,6 @@ void PoolingCompute(const nnvm::NodeAttrs& attrs,
         || pool_enum::kSumPooling == param.pool_type
         || pool_enum::kLpPooling == param.pool_type) {
       PoolingOp<xpu, DType> op;
-      // herewj
       const char *type = getenv("MXNET_EMULATOR_TYPE");
       const bool default_emulator = (type == nullptr);
       if (default_emulator) type = "Naive";
@@ -295,7 +292,7 @@ void PoolingCompute(const nnvm::NodeAttrs& attrs,
         op.Init(param);
         op.Forward(ctx, inputs[0], req[0], outputs[0]);
       } else {
-        useconds_t time = param.sleep_time;
+        useconds_t time = param.forward_time;
         usleep(time);
       }
     } else {
@@ -346,7 +343,7 @@ void PoolingGradCompute(const nnvm::NodeAttrs& attrs,
         op.Backward(ctx, inputs[ograd_idx], inputs[in_data_idx],
                     inputs[out_data_idx], req[0], outputs[0]);
       } else {
-        useconds_t time = param.backward_sleep_time;
+        useconds_t time = param.backward_time;
         usleep(time);
       }
     } else {

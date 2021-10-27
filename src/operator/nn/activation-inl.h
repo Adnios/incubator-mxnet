@@ -38,6 +38,7 @@
 #include "../operator_common.h"
 #include "../mxnet_op.h"
 #include "../mshadow_op.h"
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -56,6 +57,8 @@ int GradNumInputs(int act_type);
 struct ActivationParam : public dmlc::Parameter<ActivationParam> {
   // use int for enumeration
   int act_type;
+  uint64_t forward_time;
+  uint64_t backward_time;
   DMLC_DECLARE_PARAMETER(ActivationParam) {
     DMLC_DECLARE_FIELD(act_type)
     .add_enum("relu", activation::kReLU)
@@ -64,10 +67,16 @@ struct ActivationParam : public dmlc::Parameter<ActivationParam> {
     .add_enum("softrelu", activation::kSoftReLU)
     .add_enum("softsign", activation::kSoftSign)
     .describe("Activation function to be applied.");
+    DMLC_DECLARE_FIELD(forward_time).set_default(0)
+    .describe("Forward pass time predicted by performance predictor");
+    DMLC_DECLARE_FIELD(backward_time).set_default(0)
+    .describe("Backward pass time predicted by performance predictor");
   }
 
   bool operator==(const ActivationParam& other) const {
-    return this->act_type == other.act_type;
+    return this->act_type == other.act_type &&
+					 this->forward_time == other.forward_time &&
+					 this->backward_time == other.backward_time;
   }
 };
 
@@ -78,7 +87,11 @@ namespace std {
 template<>
 struct hash<mxnet::op::ActivationParam> {
   size_t operator()(const mxnet::op::ActivationParam& val) {
-    return val.act_type;
+    size_t ret = 0;
+    ret = dmlc::HashCombine(ret, val.act_type);
+    ret = dmlc::HashCombine(ret, val.forward_time);
+    ret = dmlc::HashCombine(ret, val.backward_time);
+		return ret;
   }
 };
 }  // namespace std
@@ -192,15 +205,17 @@ void ActivationCompute(const nnvm::NodeAttrs& attrs,
                        const std::vector<TBlob>& outputs) {
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), 1U);
-  // 默认naive,其他sleep,sleep时间又python端判断
-  // todo: cpu 默认sleep(0)
   const char *type = getenv("MXNET_EMULATOR_TYPE");
   const bool default_emulator = (type == nullptr);
   if (default_emulator) type = "Naive";
   std::string strategy = type;
+	const ActivationParam& param = nnvm::get<ActivationParam>(attrs.parsed);
   if (strategy == "Naive") {
     ActivationComputeImpl<xpu>(attrs, ctx, inputs, req, outputs);
-  }
+  } else {
+		useconds_t time = param.forward_time;
+		usleep(time);
+	}
 }
 
 template<typename xpu>
@@ -220,7 +235,10 @@ void ActivationGradCompute(const nnvm::NodeAttrs& attrs,
   std::string strategy = type;
   if (strategy == "Naive") {
     ActivationGradComputeImpl<xpu>(attrs, ctx, inputs, req, outputs);
-  }
+  } else {
+		useconds_t time = param.backward_time;
+		usleep(time);
+	}
 }
 
 }  // namespace op

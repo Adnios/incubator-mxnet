@@ -37,6 +37,7 @@
 #include "../mshadow_op.h"
 #include "../operator_common.h"
 #include "../mxnet_op.h"
+#include <unistd.h>
 
 #ifdef __GNUG__
 #pragma GCC diagnostic push
@@ -66,6 +67,8 @@ struct BatchNormParam : public dmlc::Parameter<BatchNormParam> {
   bool output_mean_var;
   int axis;
   bool cudnn_off;
+  uint64_t forward_time;
+  uint64_t backward_time;
   DMLC_DECLARE_PARAMETER(BatchNormParam) {
     DMLC_DECLARE_FIELD(eps).set_default(1e-3f)
     .describe("Epsilon to prevent div 0. "
@@ -84,6 +87,10 @@ struct BatchNormParam : public dmlc::Parameter<BatchNormParam> {
       .describe("Specify which shape axis the channel is specified");
     DMLC_DECLARE_FIELD(cudnn_off).set_default(false)
       .describe("Do not select CUDNN operator, if available");
+    DMLC_DECLARE_FIELD(forward_time).set_default(0)
+    .describe("Forward pass time predicted by performance predictor");
+    DMLC_DECLARE_FIELD(backward_time).set_default(0)
+    .describe("Backward pass time predicted by performance predictor");
   }
 
   bool operator==(const BatchNormParam& other) const {
@@ -93,7 +100,9 @@ struct BatchNormParam : public dmlc::Parameter<BatchNormParam> {
            this->use_global_stats == other.use_global_stats &&
            this->output_mean_var == other.output_mean_var &&
            this->axis == other.axis &&
-           this->cudnn_off == other.cudnn_off;
+           this->cudnn_off == other.cudnn_off &&
+					 this->forward_time == other.forward_time &&
+					 this->backward_time == other.backward_time;
   }
 };
 
@@ -110,6 +119,8 @@ struct hash<mxnet::op::BatchNormParam> {
     ret = dmlc::HashCombine(ret, val.use_global_stats);
     ret = dmlc::HashCombine(ret, val.output_mean_var);
     ret = dmlc::HashCombine(ret, val.axis);
+    ret = dmlc::HashCombine(ret, val.forward_time);
+    ret = dmlc::HashCombine(ret, val.backward_time);
     return ret;
   }
 };
@@ -259,7 +270,6 @@ void BatchNormCompute(const nnvm::NodeAttrs& attrs,
                              inputs.begin() + batchnorm::kInMovingMean);
   std::vector<TBlob> aux_states(inputs.begin() + batchnorm::kInMovingMean,
                                 inputs.end());
-  // 同 activation
   const char *type = getenv("MXNET_EMULATOR_TYPE");
   const bool default_emulator = (type == nullptr);
   if (default_emulator) type = "Naive";
@@ -269,7 +279,10 @@ void BatchNormCompute(const nnvm::NodeAttrs& attrs,
       BatchNormForward<xpu, DType, AccReal>(ctx, param, in_data, req, outputs,
                                             aux_states);
     });
-  }
+  } else {
+		useconds_t time = param.forward_time;
+		usleep(time);
+	}
 }
 
 template<typename xpu>
@@ -288,7 +301,10 @@ void BatchNormGradCompute(const nnvm::NodeAttrs& attrs,
     MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
       BatchNormBackward<xpu, DType, AccReal>(ctx, param, inputs, req, outputs);
     });
-  }
+  } else {
+		useconds_t time = param.backward_time;
+		usleep(time);
+	}
 }
 
 #if DMLC_USE_CXX11

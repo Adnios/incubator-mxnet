@@ -39,6 +39,7 @@
 #include "mxnet_op.h"
 #include "./tensor/init_op.h"
 #include "./tensor/util/tensor_util-inl.h"
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -346,7 +347,13 @@ inline void SGDMomUpdate(const nnvm::NodeAttrs& attrs,
         static_cast<DType>(param.lr), static_cast<DType>(param.wd),
         static_cast<DType>(param.rescale_grad), req[0]);
       });
-  }
+  } else if (strategy == "V100") {
+		useconds_t time = 200;
+		usleep(time);
+	} else if (strategy == "K80") {
+		useconds_t time = 1500;
+		usleep(time);
+	}
 }
 
 template<int n_in, int n_out, int total_in>
@@ -716,7 +723,13 @@ inline void SGDMomUpdateEx(const nnvm::NodeAttrs& attrs,
     } else {
       LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
     }
-  }
+  } else if (strategy == "V100") {
+		useconds_t time = 200;
+		usleep(time);
+	} else if (strategy == "K80") {
+		useconds_t time = 1500;
+		usleep(time);
+	}
 }
 
 

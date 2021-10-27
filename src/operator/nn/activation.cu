@@ -28,6 +28,7 @@
 #if MXNET_USE_CUDNN == 1
 #include "./cudnn/cudnn_activation-inl.h"
 #endif
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -55,9 +56,6 @@ void ActivationCompute<gpu>(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(outputs.size(), 1U);
   const ActivationParam& param = nnvm::get<ActivationParam>(attrs.parsed);
   const int act_type = param.act_type;
-
-  // 实验中基本上都是 relu 都跳过先
-  // todo: add sleep
   const char *type = getenv("MXNET_EMULATOR_TYPE");
   const bool default_emulator = (type == nullptr);
   if (default_emulator) type = "Naive";
@@ -75,6 +73,10 @@ void ActivationCompute<gpu>(const nnvm::NodeAttrs& attrs,
         get_cudnn_op<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
       });
     }
+  } else {
+      useconds_t time = param.forward_time;
+      usleep(time);
+    }
   }
 }
 
@@ -89,7 +91,6 @@ void ActivationGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(inputs.size(), activation::GradNumInputs(act_type));
   CHECK_EQ(outputs.size(), 1U);
   CHECK_EQ(req.size(), 1U);
-
   const char *type = getenv("MXNET_EMULATOR_TYPE");
   const bool default_emulator = (type == nullptr);
   if (default_emulator) type = "Naive";
@@ -114,6 +115,9 @@ void ActivationGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
                                             inputs.at(1), req[0], outputs[0]);
       });
     }
+  } else {
+    useconds_t time = param.backward_time;
+    usleep(time);
   }
 }
 #endif

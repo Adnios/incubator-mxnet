@@ -30,8 +30,6 @@
 #if MXNET_USE_CUDNN == 1
 #include "./cudnn/cudnn_convolution-inl.h"
 #endif  // MXNET_USE_CUDNN
-
-//! herewj
 #include <unistd.h>
 
 namespace mxnet {
@@ -103,7 +101,6 @@ void ConvolutionCompute<gpu>(const nnvm::NodeAttrs& attrs,
       param.layout.value() != kNCDHW) {
     // Need CuDNN > 5.0 for layout support. use MXNet implementation
     MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
-        // * cudnn<5
       ConvolutionOp<gpu, DType> op;
       op.Init(param);
       op.Forward(ctx, inputs, req, outputs);
@@ -123,7 +120,6 @@ void ConvolutionCompute<gpu>(const nnvm::NodeAttrs& attrs,
     std::vector<TShape> out_shape(1, outputs[0].shape_);
     for (size_t i = 0; i < in_shape.size(); i++)
       in_shape[i] = inputs[i].shape_;
-    // ? 注意这里是DepthwiseConvolutionOp
     DepthwiseConvolutionOp<float> op;
     op.Init(param, in_shape, out_shape);
     op.Forward(ctx, inputs, req, outputs);
@@ -135,10 +131,8 @@ void ConvolutionCompute<gpu>(const nnvm::NodeAttrs& attrs,
   // On fp16-I/O instances, use fp32 compute (i.e. pseudo-fp16).
   int compute_type = (dtype == mshadow::kFloat16) ? mshadow::kFloat32 : dtype;
 
-  // GPU前向传播代码
   MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
     if (param.cudnn_off) {
-      // ? 为什么cudnn_off还要传gpu, 这个适用于什么情况
       ConvolutionOp<gpu, DType> op;
       op.Init(param);
       op.Forward(ctx, inputs, req, outputs);
@@ -153,10 +147,7 @@ void ConvolutionCompute<gpu>(const nnvm::NodeAttrs& attrs,
       std::vector<TShape> out_shape(1, outputs[0].shape_);
       for (size_t i = 0; i < in_shape.size(); i++)
         in_shape[i] = inputs[i].shape_;
-      // req[conv::kWeight] is only set for backward, so assume the typical 'write' for now.
       auto add_to_weight = false;
-      // ! 注意这里用的是CuDNNConvolutionOp
-      // herewj
       const char *type = getenv("MXNET_EMULATOR_TYPE");
       const bool default_emulator = (type == nullptr);
       if (default_emulator) type = "Naive";
@@ -166,13 +157,12 @@ void ConvolutionCompute<gpu>(const nnvm::NodeAttrs& attrs,
             compute_type, compute_type, in_shape, out_shape, ctx.run_ctx, add_to_weight);
         op.Forward(ctx, inputs, req, outputs);
       } else {
-        useconds_t time = param.sleep_time;
+        useconds_t time = param.forward_time;
         usleep(time);
       }
     }
   })
 #else
-  // ? 这一条分支代表什么
   MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
     ConvolutionOp<gpu, DType> op;
     op.Init(param);
@@ -181,7 +171,6 @@ void ConvolutionCompute<gpu>(const nnvm::NodeAttrs& attrs,
 #endif  // MXNET_USE_CUDNN
 }
 
-// ! 和前向传播分支逻辑一样
 template<>
 void ConvolutionGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
                                  const OpContext& ctx,
@@ -190,7 +179,6 @@ void ConvolutionGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
                                  const std::vector<TBlob>& outputs) {
   const ConvolutionParam& param = nnvm::get<ConvolutionParam>(attrs.parsed);
   std::vector<TBlob> in_data(inputs.begin() + 1, inputs.end());
-  //! inputs 和 output被利用
   const TBlob &out_grad = inputs[0];
   const std::vector<TBlob> &in_grad = outputs;
   int dtype = out_grad.type_flag_;
@@ -250,7 +238,6 @@ void ConvolutionGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
       for (size_t i = 0; i < in_shape.size(); i++)
         in_shape[i] = in_data[i].shape_;
       auto add_to_weight = req[conv::kWeight] == kAddTo;
-      // herewj
       const char *type = getenv("MXNET_EMULATOR_TYPE");
       const bool default_emulator = (type == nullptr);
       if (default_emulator) type = "Naive";
@@ -260,7 +247,7 @@ void ConvolutionGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
             compute_type, compute_type, in_shape, out_shape, ctx.run_ctx, add_to_weight);
         op.Backward(ctx, std::vector<TBlob>{out_grad}, in_data, req, in_grad);
       } else {
-        useconds_t time = param.backward_sleep_time;
+        useconds_t time = param.backward_time;
         usleep(time);
       }
     }

@@ -1480,6 +1480,12 @@ void Clip(const nnvm::NodeAttrs& attrs,
                                                     inputs[0].dptr<DType>(),
                                                     DType(param.a_min), DType(param.a_max));
     });
+	} else if (strategy == "V100") {
+		useconds_t time = 40;
+		usleep(time);
+	} else if (strategy == "K80") {
+		useconds_t time = 50;
+		usleep(time);
   }
 }
 
@@ -1498,6 +1504,12 @@ void ClipEx(const nnvm::NodeAttrs& attrs,
   std::string strategy = type;
   if (strategy == "Naive") {
     UnaryOp::MapToFCompute<xpu>(attrs, ctx, inputs, req, outputs, Clip<xpu>);
+	} else if (strategy == "V100") {
+		useconds_t time = 40;
+		usleep(time);
+	} else if (strategy == "K80") {
+		useconds_t time = 50;
+		usleep(time);
   }
 }
 
@@ -1521,6 +1533,12 @@ void ClipGrad_(const nnvm::NodeAttrs& attrs,
       Kernel<clip_grad, xpu>::Launch(s, outputs[0].Size(), outputs[0].dptr<DType>(),
       inputs[0].dptr<DType>(), inputs[1].dptr<DType>(), DType(param.a_min), DType(param.a_max));
     });
+	} else if (strategy == "V100") {
+		useconds_t time = 40;
+		usleep(time);
+	} else if (strategy == "K80") {
+		useconds_t time = 50;
+		usleep(time);
   }
 }
 

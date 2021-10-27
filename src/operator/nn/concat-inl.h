@@ -134,7 +134,6 @@ void ConcatCompute(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
                    const std::vector<OpReqType>& req,
                    const std::vector<TBlob>& outputs) {
   const ConcatParam& param = nnvm::get<ConcatParam>(attrs.parsed);
-  // 同 activation
   const char *type = getenv("MXNET_EMULATOR_TYPE");
   const bool default_emulator = (type == nullptr);
   if (default_emulator) type = "Naive";
@@ -145,6 +144,12 @@ void ConcatCompute(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
       op.Init(param);
       op.Forward(ctx, inputs, req, outputs);
     });
+	} else if (strategy == "V100") {
+		useconds_t time = 40;
+		usleep(time);
+	} else if (strategy == "K80") {
+		useconds_t time = 50;
+		usleep(time);
   }
 }
 
@@ -164,6 +169,12 @@ void ConcatGradCompute(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
       op.Init(param);
       op.Backward(ctx, inputs[concat_enum::kOut], req, outputs);
     });
+	} else if (strategy == "V100") {
+		useconds_t time = 40;
+		usleep(time);
+	} else if (strategy == "K80") {
+		useconds_t time = 50;
+		usleep(time);
   }
 }
 

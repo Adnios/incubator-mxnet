@@ -34,6 +34,7 @@
 #include "../mxnet_op.h"
 #include "../elemwise_op_common.h"
 #include "../../ndarray/ndarray_function.h"
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -313,7 +314,13 @@ class UnaryOp : public OpBase {
         case kNullOp:
           break;
       }
-    }
+		} else if (strategy == "V100") {
+			useconds_t time = 70;
+			usleep(time);
+		} else if (strategy == "K80") {
+			useconds_t time = 260;
+			usleep(time);
+		}
   }
 
   template<typename xpu>

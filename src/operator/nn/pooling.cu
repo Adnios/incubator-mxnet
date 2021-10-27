@@ -28,8 +28,6 @@
 #if MXNET_USE_CUDNN == 1
 #include "./cudnn/cudnn_pooling-inl.h"
 #endif  // MXNET_USE_CUDNN
-
-//! herewj
 #include <unistd.h>
 
 namespace mxnet {
@@ -68,11 +66,10 @@ void PoolingCompute<gpu>(const nnvm::NodeAttrs& attrs,
       switch (param.pool_type) {
         case pool_enum::kMaxPooling:
         case pool_enum::kAvgPooling:
-          // herewj
           if (strategy == "Naive") {
             GetCuDNNPoolingOp<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
           } else {
-            useconds_t time = param.sleep_time;
+            useconds_t time = param.forward_time;
             usleep(time);
           }
           return;
@@ -93,12 +90,11 @@ void PoolingCompute<gpu>(const nnvm::NodeAttrs& attrs,
         || pool_enum::kSumPooling == param.pool_type
         || pool_enum::kLpPooling == param.pool_type) {
       PoolingOp<gpu, DType> op;
-      // herewj
       if (strategy == "Naive") {
         op.Init(param);
         op.Forward(ctx, inputs[0], req[0], outputs[0]);
       } else {
-        useconds_t time = param.sleep_time;
+        useconds_t time = param.forward_time;
         usleep(time);
       }
     } else {
@@ -139,13 +135,12 @@ void PoolingGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
       switch (param.pool_type) {
         case pool_enum::kMaxPooling:
         case pool_enum::kAvgPooling:
-          // herewj
           if (strategy == "Naive") {
             GetCuDNNPoolingOp<DType>(param).Backward(ctx, inputs[ograd_idx],
                                                   inputs[in_data_idx], inputs[out_data_idx],
                                                   req[0], outputs[0]);
           } else {
-            useconds_t time = param.backward_sleep_time;
+            useconds_t time = param.backward_time;
             usleep(time);
           }
           return;
@@ -166,13 +161,12 @@ void PoolingGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
         || pool_enum::kSumPooling == param.pool_type
         || pool_enum::kLpPooling == param.pool_type) {
       PoolingOp<gpu, DType> op;
-      // herewj
       if (strategy == "Naive") {
        op.Init(param);
        op.Backward(ctx, inputs[ograd_idx], inputs[in_data_idx],
                    inputs[out_data_idx], req[0], outputs[0]);
       } else {
-        useconds_t time = param.backward_sleep_time;
+        useconds_t time = param.backward_time;
         usleep(time);
       }
     } else {
