@@ -119,31 +119,31 @@ void ElementWiseSumComputeExCPU(const nnvm::NodeAttrs& attrs,
   if (default_emulator) type = "Naive";
   std::string strategy = type;
   if (strategy == "Naive") {
-		if (common::ContainsOnlyStorage(inputs, kRowSparseStorage) ||
-				(inputs.size() == 3U && inputs[0].storage_type() == kDefaultStorage &&
-				inputs[1].storage_type() == kCSRStorage && inputs[2].storage_type() == kDefaultStorage) ||
-				(inputs.size() > 4U && common::ContainsStorageType(inputs, kDefaultStorage) &&
-				outputs[0].storage_type() == kDefaultStorage)) {
-			mshadow::Stream<cpu>* s = ctx.get_stream<cpu>();
-			Resource rsc = ResourceManager::Get()->Request(ctx.run_ctx.get_ctx(),
-					ResourceRequest(ResourceRequest::kTempSpace));
-			NDArray out_nd = outputs[0];
-			mxnet::ndarray::ElementwiseSum<cpu>(s, rsc, inputs, &out_nd);
+    if (common::ContainsOnlyStorage(inputs, kRowSparseStorage) ||
+        (inputs.size() == 3U && inputs[0].storage_type() == kDefaultStorage &&
+        inputs[1].storage_type() == kCSRStorage && inputs[2].storage_type() == kDefaultStorage) ||
+        (inputs.size() > 4U && common::ContainsStorageType(inputs, kDefaultStorage) &&
+        outputs[0].storage_type() == kDefaultStorage)) {
+      mshadow::Stream<cpu>* s = ctx.get_stream<cpu>();
+      Resource rsc = ResourceManager::Get()->Request(ctx.run_ctx.get_ctx(),
+          ResourceRequest(ResourceRequest::kTempSpace));
+      NDArray out_nd = outputs[0];
+      mxnet::ndarray::ElementwiseSum<cpu>(s, rsc, inputs, &out_nd);
 #if MXNET_USE_MKLDNN == 1
-		} else if (IsMKLDNNData(inputs)) {
-			MKLDNNSumForward(attrs, ctx, inputs, req[0], outputs[0]);
-		} else if (common::ContainsOnlyStorage(inputs, kDefaultStorage)) {
-			FallBackCompute(ElementWiseSumCompute<cpu>, attrs, ctx, inputs, req, outputs);
+    } else if (IsMKLDNNData(inputs)) {
+      MKLDNNSumForward(attrs, ctx, inputs, req[0], outputs[0]);
+    } else if (common::ContainsOnlyStorage(inputs, kDefaultStorage)) {
+      FallBackCompute(ElementWiseSumCompute<cpu>, attrs, ctx, inputs, req, outputs);
 #endif
-		} else {
-			LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
-		}
-	} else if (strategy == "V100") {
-		useconds_t time = 40;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 50;
-		usleep(time);
+    } else {
+      LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
+    }
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
   }
 }
 

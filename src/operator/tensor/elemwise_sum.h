@@ -117,12 +117,12 @@ void ElementWiseSumCompute(const nnvm::NodeAttrs& attrs,
     MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
         ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
     });
-	} else if (strategy == "V100") {
-		useconds_t time = 40;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 50;
-		usleep(time);
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
   }
 }
 
@@ -141,12 +141,12 @@ void ElementWiseSumComputeWithHalf2(const nnvm::NodeAttrs& attrs,
     MSHADOW_TYPE_SWITCH_WITH_HALF2(outputs[0].type_flag_, DType, {
         ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
     });
-	} else if (strategy == "V100") {
-		useconds_t time = 40;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 50;
-		usleep(time);
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
   }
 }
 

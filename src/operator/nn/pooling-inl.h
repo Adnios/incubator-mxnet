@@ -110,8 +110,8 @@ struct PoolingParam : public dmlc::Parameter<PoolingParam> {
            this->pool_type          == other.pool_type &&
            this->pooling_convention == other.pooling_convention &&
            this->global_pool        == other.global_pool &&
-           this->forward_time				== other.forward_time &&
-           this->backward_time			== other.backward_time &&
+           this->forward_time       == other.forward_time &&
+           this->backward_time      == other.backward_time &&
            this->cudnn_off          == other.cudnn_off &&
            this->p_value            == other.p_value &&
            this->count_include_pad  == other.count_include_pad;

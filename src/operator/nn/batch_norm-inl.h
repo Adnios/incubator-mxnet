@@ -101,8 +101,8 @@ struct BatchNormParam : public dmlc::Parameter<BatchNormParam> {
            this->output_mean_var == other.output_mean_var &&
            this->axis == other.axis &&
            this->cudnn_off == other.cudnn_off &&
-					 this->forward_time == other.forward_time &&
-					 this->backward_time == other.backward_time;
+           this->forward_time == other.forward_time &&
+           this->backward_time == other.backward_time;
   }
 };
 
@@ -280,9 +280,9 @@ void BatchNormCompute(const nnvm::NodeAttrs& attrs,
                                             aux_states);
     });
   } else {
-		useconds_t time = param.forward_time;
-		usleep(time);
-	}
+    useconds_t time = param.forward_time;
+    usleep(time);
+  }
 }
 
 template<typename xpu>
@@ -302,9 +302,9 @@ void BatchNormGradCompute(const nnvm::NodeAttrs& attrs,
       BatchNormBackward<xpu, DType, AccReal>(ctx, param, inputs, req, outputs);
     });
   } else {
-		useconds_t time = param.backward_time;
-		usleep(time);
-	}
+    useconds_t time = param.backward_time;
+    usleep(time);
+  }
 }
 
 #if DMLC_USE_CXX11

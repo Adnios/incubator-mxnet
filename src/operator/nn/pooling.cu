@@ -61,7 +61,7 @@ void PoolingCompute<gpu>(const nnvm::NodeAttrs& attrs,
   if (default_emulator) type = "Naive";
   std::string strategy = type;
 #if MXNET_USE_CUDNN == 1
-    if (!param.cudnn_off && param.kernel.ndim() > 1) {
+  if (!param.cudnn_off && param.kernel.ndim() > 1) {
     MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
       switch (param.pool_type) {
         case pool_enum::kMaxPooling:

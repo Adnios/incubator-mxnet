@@ -314,13 +314,13 @@ class UnaryOp : public OpBase {
         case kNullOp:
           break;
       }
-		} else if (strategy == "V100") {
-			useconds_t time = 70;
-			usleep(time);
-		} else if (strategy == "K80") {
-			useconds_t time = 260;
-			usleep(time);
-		}
+    } else if (strategy == "V100") {
+      useconds_t time = 70;
+      usleep(time);
+    } else if (strategy == "K80") {
+      useconds_t time = 260;
+      usleep(time);
+    }
   }
 
   template<typename xpu>

@@ -144,12 +144,12 @@ void ConcatCompute(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
       op.Init(param);
       op.Forward(ctx, inputs, req, outputs);
     });
-	} else if (strategy == "V100") {
-		useconds_t time = 40;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 50;
-		usleep(time);
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
   }
 }
 
@@ -169,12 +169,12 @@ void ConcatGradCompute(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
       op.Init(param);
       op.Backward(ctx, inputs[concat_enum::kOut], req, outputs);
     });
-	} else if (strategy == "V100") {
-		useconds_t time = 40;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 50;
-		usleep(time);
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
   }
 }
 

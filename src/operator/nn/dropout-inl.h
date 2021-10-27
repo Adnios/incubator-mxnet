@@ -386,12 +386,12 @@ void DropoutCompute(const nnvm::NodeAttrs& attrs,
       op.Init(param);
       op.Forward(ctx, inputs, req, outputs);
     });
-	} else if (strategy == "V100") {
-		useconds_t time = 40;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 50;
-		usleep(time);
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
   }
 }
 
@@ -420,12 +420,12 @@ void DropoutGradCompute(const nnvm::NodeAttrs& attrs,
       op.Init(param);
       op.Backward(ctx, out_grads, out_data, req, outputs);
     });
-	} else if (strategy == "V100") {
-		useconds_t time = 40;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 50;
-		usleep(time);
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
   }
 }
 

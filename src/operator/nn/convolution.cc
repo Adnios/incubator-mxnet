@@ -494,9 +494,6 @@ There are other options to tune the performance.
 .add_argument("data", "NDArray-or-Symbol", "Input data to the ConvolutionOp.")
 .add_argument("weight", "NDArray-or-Symbol", "Weight matrix.")
 .add_argument("bias", "NDArray-or-Symbol", "Bias parameter.")
-// 名字和inh.cc中的不同需要在写一下
-// .add_argument("sleep_time", "NDArray-or-Symbol", "Sleep time")//!herewj
-// .add_argument("backward_sleep_time", "NDArray-or-Symbol", "Backward Sleep time")//!herewj
 .add_arguments(ConvolutionParam::__FIELDS__());
 
 NNVM_REGISTER_OP(_backward_Convolution)

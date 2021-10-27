@@ -418,11 +418,11 @@ void ConvolutionCompute(const nnvm::NodeAttrs& attrs,
     if (default_emulator) type = "Naive";
     std::string strategy = type;
     if (strategy == "Naive") {
-			op.Init(param);
-			op.Forward(ctx, inputs, req, outputs);
+      op.Init(param);
+      op.Forward(ctx, inputs, req, outputs);
     } else {
-			useconds_t time = param.forward_time;
-			usleep(time);
+      useconds_t time = param.forward_time;
+      usleep(time);
     }
   });
 }

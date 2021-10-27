@@ -75,8 +75,8 @@ struct ActivationParam : public dmlc::Parameter<ActivationParam> {
 
   bool operator==(const ActivationParam& other) const {
     return this->act_type == other.act_type &&
-					 this->forward_time == other.forward_time &&
-					 this->backward_time == other.backward_time;
+           this->forward_time == other.forward_time &&
+           this->backward_time == other.backward_time;
   }
 };
 
@@ -91,7 +91,7 @@ struct hash<mxnet::op::ActivationParam> {
     ret = dmlc::HashCombine(ret, val.act_type);
     ret = dmlc::HashCombine(ret, val.forward_time);
     ret = dmlc::HashCombine(ret, val.backward_time);
-		return ret;
+    return ret;
   }
 };
 }  // namespace std
@@ -209,13 +209,13 @@ void ActivationCompute(const nnvm::NodeAttrs& attrs,
   const bool default_emulator = (type == nullptr);
   if (default_emulator) type = "Naive";
   std::string strategy = type;
-	const ActivationParam& param = nnvm::get<ActivationParam>(attrs.parsed);
+  const ActivationParam& param = nnvm::get<ActivationParam>(attrs.parsed);
   if (strategy == "Naive") {
     ActivationComputeImpl<xpu>(attrs, ctx, inputs, req, outputs);
   } else {
-		useconds_t time = param.forward_time;
-		usleep(time);
-	}
+    useconds_t time = param.forward_time;
+    usleep(time);
+  }
 }
 
 template<typename xpu>
@@ -236,9 +236,9 @@ void ActivationGradCompute(const nnvm::NodeAttrs& attrs,
   if (strategy == "Naive") {
     ActivationGradComputeImpl<xpu>(attrs, ctx, inputs, req, outputs);
   } else {
-		useconds_t time = param.backward_time;
-		usleep(time);
-	}
+    useconds_t time = param.backward_time;
+    usleep(time);
+  }
 }
 
 }  // namespace op

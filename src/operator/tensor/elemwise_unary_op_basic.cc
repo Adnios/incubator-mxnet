@@ -178,13 +178,13 @@ static void CopyEx(const nnvm::NodeAttrs& attrs,
     }
 #endif
     UnaryOp::IdentityComputeEx<cpu>(attrs, ctx, inputs, req, outputs);
-	} else if (strategy == "V100") {
-		useconds_t time = 70;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 260;
-		usleep(time);
-	}
+  } else if (strategy == "V100") {
+    useconds_t time = 70;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 260;
+    usleep(time);
+  }
 }
 
 static inline bool CopyStorageType(const nnvm::NodeAttrs& attrs,

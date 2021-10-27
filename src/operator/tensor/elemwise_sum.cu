@@ -54,12 +54,12 @@ void ElementWiseSumComputeExGPU(const nnvm::NodeAttrs& attrs,
     } else {
       LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
     }
-	} else if (strategy == "V100") {
-		useconds_t time = 40;
-		usleep(time);
-	} else if (strategy == "K80") {
-		useconds_t time = 50;
-		usleep(time);
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
   }
 }
 
