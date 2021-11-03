@@ -28,6 +28,7 @@
 #if MXNET_USE_CUDNN == 1
 #include "./cudnn/cudnn_pooling-inl.h"
 #endif  // MXNET_USE_CUDNN
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -55,11 +56,20 @@ void PoolingCompute<gpu>(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), GetNumOutputs(param));
 
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
 #if MXNET_USE_CUDNN == 1
   if (!param.cudnn_off) {
     MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
       if (CuDNNPoolingOp<DType>::Supports(param, inputs[0])) {
-        GetCuDNNPoolingOp<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
+        if (strategy == "Naive") {
+          GetCuDNNPoolingOp<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
+        } else {
+          useconds_t time = param.forward_time;
+          usleep(time);
+        }
         return;
       }
     });
@@ -102,13 +112,22 @@ void PoolingGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
     out_data_idx = 2;
   }
 
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
 #if MXNET_USE_CUDNN == 1
   if (!param.cudnn_off) {
     MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
       if (CuDNNPoolingOp<DType>::Supports(param, inputs[in_data_idx])) {
-          GetCuDNNPoolingOp<DType>(param).Backward(ctx, inputs[ograd_idx],
-                                                   inputs[in_data_idx], inputs[out_data_idx],
-                                                   req[0], outputs[0]);
+          if (strategy == "Naive") {
+            GetCuDNNPoolingOp<DType>(param).Backward(ctx, inputs[ograd_idx],
+                                                  inputs[in_data_idx], inputs[out_data_idx],
+                                                  req[0], outputs[0]);
+          } else {
+            useconds_t time = param.backward_time;
+            usleep(time);
+          }
           return;
       }
     });

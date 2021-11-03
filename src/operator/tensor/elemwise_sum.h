@@ -33,6 +33,7 @@
 #include "../elemwise_op_common.h"
 #include "../mshadow_op.h"
 #include "../mxnet_op.h"
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -108,9 +109,21 @@ void ElementWiseSumCompute(const nnvm::NodeAttrs& attrs,
                            const std::vector<OpReqType>& req,
                            const std::vector<TBlob>& outputs) {
   CHECK_EQ(outputs.size(), 1U);
-  MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
-      ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
+        ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
+    });
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
+  }
 }
 
 template<typename xpu>
@@ -120,9 +133,21 @@ void ElementWiseSumComputeWithHalf2(const nnvm::NodeAttrs& attrs,
                                     const std::vector<OpReqType>& req,
                                     const std::vector<TBlob>& outputs) {
   CHECK_EQ(outputs.size(), 1U);
-  MSHADOW_TYPE_SWITCH_WITH_HALF2(outputs[0].type_flag_, DType, {
-      ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_TYPE_SWITCH_WITH_HALF2(outputs[0].type_flag_, DType, {
+        ElementWiseSumCompute_<xpu, DType>(attrs, ctx, inputs, req, outputs);
+    });
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
+  }
 }
 
 }  // namespace op

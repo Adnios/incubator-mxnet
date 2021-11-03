@@ -1642,13 +1642,25 @@ void Clip(const nnvm::NodeAttrs& attrs,
   using namespace mshadow;
   const ClipParam& param = nnvm::get<ClipParam>(attrs.parsed);
   CHECK_EQ(inputs[0].type_flag_, outputs[0].type_flag_);
-  Stream<xpu> *s = ctx.get_stream<xpu>();
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    Stream<xpu> *s = ctx.get_stream<xpu>();
 
-  MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
-    mxnet_op::Kernel<mxnet::op::clip, xpu>::Launch(s, outputs[0].Size(), outputs[0].dptr<DType>(),
-                                                   inputs[0].dptr<DType>(),
-                                                   param.a_min, param.a_max);
-  });
+    MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
+      mxnet_op::Kernel<mxnet::op::clip, xpu>::Launch(s, outputs[0].Size(), outputs[0].dptr<DType>(),
+                                                    inputs[0].dptr<DType>(),
+                                                    param.a_min, param.a_max);
+    });
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
+  }
 }
 
 template<typename xpu>
@@ -1660,7 +1672,19 @@ void ClipEx(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(inputs[0].dtype(), outputs[0].dtype());
   CHECK_EQ(inputs[0].storage_type(), outputs[0].storage_type());
   CHECK_NE(inputs[0].storage_type(), kDefaultStorage);
-  UnaryOp::MapToFCompute<xpu>(attrs, ctx, inputs, req, outputs, Clip<xpu>);
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    UnaryOp::MapToFCompute<xpu>(attrs, ctx, inputs, req, outputs, Clip<xpu>);
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
+  }
 }
 
 template<typename xpu>
@@ -1673,11 +1697,23 @@ void ClipGrad_(const nnvm::NodeAttrs& attrs,
   using namespace mxnet_op;
   const ClipParam& param = nnvm::get<ClipParam>(attrs.parsed);
   CHECK_EQ(inputs[0].type_flag_, outputs[0].type_flag_);
-  Stream<xpu> *s = ctx.get_stream<xpu>();
-  MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
-    Kernel<clip_grad, xpu>::Launch(s, outputs[0].Size(), outputs[0].dptr<DType>(),
-    inputs[0].dptr<DType>(), inputs[1].dptr<DType>(), param.a_min, param.a_max);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    Stream<xpu> *s = ctx.get_stream<xpu>();
+    MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
+      Kernel<clip_grad, xpu>::Launch(s, outputs[0].Size(), outputs[0].dptr<DType>(),
+      inputs[0].dptr<DType>(), inputs[1].dptr<DType>(), DType(param.a_min), DType(param.a_max));
+    });
+  } else if (strategy == "V100") {
+    useconds_t time = 40;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 50;
+    usleep(time);
+  }
 }
 
 /*!

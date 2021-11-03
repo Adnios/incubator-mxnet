@@ -30,6 +30,7 @@
 #if MXNET_USE_CUDNN == 1
 #include "./cudnn/cudnn_convolution-inl.h"
 #endif  // MXNET_USE_CUDNN
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -117,9 +118,18 @@ void ConvolutionCompute<gpu>(const nnvm::NodeAttrs& attrs,
         in_shape[i] = inputs[i].shape_;
       // req[conv::kWeight] is only set for backward, so assume the typical 'write' for now.
       auto add_to_weight = false;
-      CuDNNConvolutionOp<DType> &op = GetCuDNNConvOp<DType>(param,
-          compute_type, compute_type, in_shape, out_shape, ctx.run_ctx, add_to_weight);
-      op.Forward(ctx, inputs, req, outputs);
+      const char *type = getenv("MXNET_EMULATOR_TYPE");
+      const bool default_emulator = (type == nullptr);
+      if (default_emulator) type = "Naive";
+      std::string strategy = type;
+      if (strategy == "Naive") {
+        CuDNNConvolutionOp<DType> &op = GetCuDNNConvOp<DType>(param,
+            compute_type, compute_type, in_shape, out_shape, ctx.run_ctx, add_to_weight);
+        op.Forward(ctx, inputs, req, outputs);
+      } else {
+        useconds_t time = param.forward_time;
+        usleep(time);
+      }
     }
   })
 #else
@@ -182,9 +192,18 @@ void ConvolutionGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
       for (size_t i = 0; i < in_shape.size(); i++)
         in_shape[i] = in_data[i].shape_;
       auto add_to_weight = req[conv::kWeight] == kAddTo;
-      CuDNNConvolutionOp<DType> &op = GetCuDNNConvOp<DType>(param,
-          compute_type, compute_type, in_shape, out_shape, ctx.run_ctx, add_to_weight);
-      op.Backward(ctx, std::vector<TBlob>{out_grad}, in_data, req, in_grad);
+      const char *type = getenv("MXNET_EMULATOR_TYPE");
+      const bool default_emulator = (type == nullptr);
+      if (default_emulator) type = "Naive";
+      std::string strategy = type;
+      if (strategy == "Naive") {
+        CuDNNConvolutionOp<DType> &op = GetCuDNNConvOp<DType>(param,
+            compute_type, compute_type, in_shape, out_shape, ctx.run_ctx, add_to_weight);
+        op.Backward(ctx, std::vector<TBlob>{out_grad}, in_data, req, in_grad);
+      } else {
+        useconds_t time = param.backward_time;
+        usleep(time);
+      }
     }
   })
 #else

@@ -28,6 +28,7 @@
 #if MXNET_USE_CUDNN == 1
 #include "./cudnn/cudnn_activation-inl.h"
 #endif
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -56,17 +57,26 @@ void ActivationCompute<gpu>(const nnvm::NodeAttrs& attrs,
   const ActivationParam& param = nnvm::get<ActivationParam>(attrs.parsed);
   const int act_type = param.act_type;
 
-  // SoftReLU and kSoftSign are both not supported by CUDNN yet
-  if (act_type == activation::kSoftReLU) {
-    ActivationForward<gpu, mshadow_op::softrelu, mshadow_op::softrelu_grad>(ctx,
-      inputs[0], req[0], outputs[0]);
-  } else if (act_type == activation::kSoftSign) {
-    ActivationForward<gpu, mshadow_op::softsign, mshadow_op::softsign_grad>(ctx,
-      inputs[0], req[0], outputs[0]);
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    // SoftReLU and kSoftSign are both not supported by CUDNN yet
+    if (act_type == activation::kSoftReLU) {
+      ActivationForward<gpu, mshadow_op::softrelu, mshadow_op::softrelu_grad>(ctx,
+        inputs[0], req[0], outputs[0]);
+    } else if (act_type == activation::kSoftSign) {
+      ActivationForward<gpu, mshadow_op::softsign, mshadow_op::softsign_grad>(ctx,
+        inputs[0], req[0], outputs[0]);
+    } else {
+      MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
+        get_cudnn_op<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
+      });
+    }
   } else {
-    MSHADOW_REAL_TYPE_SWITCH(inputs[0].type_flag_, DType, {
-      get_cudnn_op<DType>(param).Forward(ctx, inputs[0], req[0], outputs[0]);
-    });
+    useconds_t time = param.forward_time;
+    usleep(time);
   }
 }
 
@@ -82,24 +92,33 @@ void ActivationGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(outputs.size(), 1U);
   CHECK_EQ(req.size(), 1U);
 
-  // both SoftReLU and SoftSign not supported by CUDNN yet
-  if (act_type == activation::kSoftReLU) {
-    ActivationBackward<gpu, mshadow_op::softrelu, mshadow_op::softrelu_grad>(
-      ctx, inputs.at(0), inputs.at(1), req[0], outputs[0]);
-  } else if (act_type == activation::kSoftSign) {
-    ActivationBackward<gpu, mshadow_op::softsign, mshadow_op::softsign_grad>(
-      ctx, inputs.at(0), inputs.at(2), req[0], outputs[0]);
-  } else if (act_type == activation::kReLU) {
-    MSHADOW_REAL_TYPE_SWITCH(inputs.at(0).type_flag_, DType, {
-      // XXX: for y = relu(x), y is passed as "in_data" to Backward()
-      get_cudnn_op<DType>(param).Backward(ctx, inputs.at(0), inputs.at(1),
-                                          inputs.at(1), req[0], outputs[0]);
-    });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    // both SoftReLU and SoftSign not supported by CUDNN yet
+    if (act_type == activation::kSoftReLU) {
+      ActivationBackward<gpu, mshadow_op::softrelu, mshadow_op::softrelu_grad>(
+        ctx, inputs.at(0), inputs.at(1), req[0], outputs[0]);
+    } else if (act_type == activation::kSoftSign) {
+      ActivationBackward<gpu, mshadow_op::softsign, mshadow_op::softsign_grad>(
+        ctx, inputs.at(0), inputs.at(2), req[0], outputs[0]);
+    } else if (act_type == activation::kReLU) {
+      MSHADOW_REAL_TYPE_SWITCH(inputs.at(0).type_flag_, DType, {
+        // XXX: for y = relu(x), y is passed as "in_data" to Backward()
+        get_cudnn_op<DType>(param).Backward(ctx, inputs.at(0), inputs.at(1),
+                                            inputs.at(1), req[0], outputs[0]);
+      });
+    } else {
+      MSHADOW_REAL_TYPE_SWITCH(inputs.at(0).type_flag_, DType, {
+        get_cudnn_op<DType>(param).Backward(ctx, inputs.at(0), inputs.at(2),
+                                            inputs.at(1), req[0], outputs[0]);
+      });
+    }
   } else {
-    MSHADOW_REAL_TYPE_SWITCH(inputs.at(0).type_flag_, DType, {
-      get_cudnn_op<DType>(param).Backward(ctx, inputs.at(0), inputs.at(2),
-                                          inputs.at(1), req[0], outputs[0]);
-    });
+    useconds_t time = param.backward_time;
+    usleep(time);
   }
 }
 #endif

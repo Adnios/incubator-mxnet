@@ -36,6 +36,7 @@
 #include "../elemwise_op_common.h"
 #include "../../common/utils.h"
 #include "../../ndarray/ndarray_function.h"
+#include <unistd.h>
 
 #if MSHADOW_USE_MKL == 1
 #include "../mkl_functions-inl.h"
@@ -369,28 +370,40 @@ class UnaryOp : public OpBase {
                               const std::vector<TBlob>& outputs) {
     using namespace mshadow;
     using namespace mshadow::expr;
-    switch (req[0]) {
-      case kWriteTo:
-        CHECK_EQ(outputs[0].dev_mask(), inputs[0].dev_mask());
-        mxnet_op::copy(ctx.get_stream<xpu>(), outputs[0], inputs[0]);
-        break;
-      case kAddTo: {
-          Stream<xpu> *s = ctx.get_stream<xpu>();
-          MSHADOW_TYPE_SWITCH_WITH_BOOL(outputs[0].type_flag_, DType, {
-            mxnet_op::Kernel<mxnet_op::op_with_req<mshadow_op::identity, kAddTo>, xpu>::Launch(
-              s, inputs[0].Size(), outputs[0].dptr<DType>(), inputs[0].dptr<DType>());
-          });
-        }
-        break;
-      case kWriteInplace:
-// cannot check if ptrs are the same for MKLDNN because we may have
-// created copies of input when reordering. WriteInPlace will still write to original array
+    const char *type = getenv("MXNET_EMULATOR_TYPE");
+    const bool default_emulator = (type == nullptr);
+    if (default_emulator) type = "Naive";
+    std::string strategy = type;
+    if (strategy == "Naive") {
+      switch (req[0]) {
+        case kWriteTo:
+          CHECK_EQ(outputs[0].dev_mask(), inputs[0].dev_mask());
+          mxnet_op::copy(ctx.get_stream<xpu>(), outputs[0], inputs[0]);
+          break;
+        case kAddTo: {
+            Stream<xpu> *s = ctx.get_stream<xpu>();
+            MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
+              mxnet_op::Kernel<mxnet_op::op_with_req<mshadow_op::identity, kAddTo>, xpu>::Launch(
+                s, inputs[0].Size(), outputs[0].dptr<DType>(), inputs[0].dptr<DType>());
+            });
+          }
+          break;
+        case kWriteInplace:
+  // cannot check if ptrs are the same for MKLDNN because we may have
+  // created copies of input when reordering. WriteInPlace will still write to original array
 #if MXNET_USE_MKLDNN == 0
-        CHECK_EQ(inputs[0].dptr_, outputs[0].dptr_);
+          CHECK_EQ(inputs[0].dptr_, outputs[0].dptr_);
 #endif
-        break;
-      case kNullOp:
-        break;
+          break;
+        case kNullOp:
+          break;
+      }
+    } else if (strategy == "V100") {
+      useconds_t time = 70;
+      usleep(time);
+    } else if (strategy == "K80") {
+      useconds_t time = 260;
+      usleep(time);
     }
   }
 

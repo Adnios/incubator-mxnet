@@ -39,6 +39,7 @@
 #include "../linalg.h"
 #include "../../common/utils.h"
 #include "../tensor/broadcast_reduce_op.h"
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -65,6 +66,8 @@ struct FullyConnectedParam : public dmlc::Parameter<FullyConnectedParam> {
   int num_hidden;
   bool no_bias;
   bool flatten;
+  uint64_t forward_time;
+  uint64_t backward_time;
 
   DMLC_DECLARE_PARAMETER(FullyConnectedParam) {
     // TODO(bing) add support for boolean
@@ -74,11 +77,17 @@ struct FullyConnectedParam : public dmlc::Parameter<FullyConnectedParam> {
     .describe("Whether to disable bias parameter.");
     DMLC_DECLARE_FIELD(flatten).set_default(true)
     .describe("Whether to collapse all but the first axis of the input data tensor.");
+    DMLC_DECLARE_FIELD(forward_time).set_default(0)
+    .describe("Forward pass time predicted by performance predictor");
+    DMLC_DECLARE_FIELD(backward_time).set_default(0)
+    .describe("Backward pass time predicted by performance predictor");
   }
   bool operator==(const FullyConnectedParam& other) const {
     return this->num_hidden == other.num_hidden &&
            this->no_bias == other.no_bias &&
-           this->flatten == other.flatten;
+           this->flatten == other.flatten &&
+           this->forward_time == other.forward_time &&
+           this->backward_time == other.backward_time;
   }
 };
 
@@ -414,13 +423,27 @@ void FullyConnectedCompute(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(inputs.size(), in_expected);
   CHECK_EQ(outputs.size(), 1U);
   int dtype = inputs[0].type_flag_;
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
 
   switch (dtype) {
   case mshadow::kFloat32:
-    FCForward<xpu, float>(ctx, param, inputs, req, outputs);
+    if (strategy == "Naive") {
+      FCForward<xpu, float>(ctx, param, inputs, req, outputs);
+    } else {
+      useconds_t time = param.forward_time;
+      usleep(time);
+    }
     break;
   case mshadow::kFloat64:
-    FCForward<xpu, double>(ctx, param, inputs, req, outputs);
+    if (strategy == "Naive") {
+      FCForward<xpu, double>(ctx, param, inputs, req, outputs);
+    } else {
+      useconds_t time = param.forward_time;
+      usleep(time);
+    }
     break;
   case mshadow::kFloat16:
     LOG(FATAL) << "float16 fully connected layer is currently"
@@ -447,12 +470,27 @@ void FullyConnectedGradCompute(const nnvm::NodeAttrs& attrs,
   std::vector<TBlob> in_data(inputs.begin() + 1, inputs.end());
   int dtype = inputs[0].type_flag_;
 
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+
   switch (dtype) {
   case mshadow::kFloat32:
-    FCBackward<xpu, float>(ctx, param, out_grad, in_data, req, outputs);
+    if (strategy == "Naive") {
+      FCBackward<xpu, float>(ctx, param, out_grad, in_data, req, outputs);
+    } else {
+      useconds_t time = param.backward_time;
+      usleep(time);
+    }
     break;
   case mshadow::kFloat64:
-    FCBackward<xpu, double>(ctx, param, out_grad, in_data, req, outputs);
+    if (strategy == "Naive") {
+      FCBackward<xpu, double>(ctx, param, out_grad, in_data, req, outputs);
+    } else {
+      useconds_t time = param.backward_time;
+      usleep(time);
+    }
     break;
   case mshadow::kFloat16:
     LOG(FATAL) << "float16 fully connected layer is currently"
@@ -581,6 +619,8 @@ struct hash<mxnet::op::FullyConnectedParam> {
     ret = dmlc::HashCombine(ret, val.num_hidden);
     ret = dmlc::HashCombine(ret, val.no_bias);
     ret = dmlc::HashCombine(ret, val.flatten);
+    ret = dmlc::HashCombine(ret, val.forward_time);
+    ret = dmlc::HashCombine(ret, val.backward_time);
     return ret;
   }
 };

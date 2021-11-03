@@ -37,6 +37,7 @@
 #include "../mshadow_op.h"
 #include "../operator_common.h"
 #include "../mxnet_op.h"
+#include <unistd.h>
 
 #ifdef __GNUG__
 #pragma GCC diagnostic push
@@ -74,6 +75,8 @@ struct BatchNormParam : public dmlc::Parameter<BatchNormParam> {
   bool output_mean_var;
   int axis;
   bool cudnn_off;
+  uint64_t forward_time;
+  uint64_t backward_time;
 
   dmlc::optional<float> min_calib_range;  // min float value calculated from calibration dataset
   dmlc::optional<float> max_calib_range;  // max float value calculated from calibration dataset
@@ -96,6 +99,10 @@ struct BatchNormParam : public dmlc::Parameter<BatchNormParam> {
     .describe("Specify which shape axis the channel is specified");
     DMLC_DECLARE_FIELD(cudnn_off).set_default(false)
     .describe("Do not select CUDNN operator, if available");
+    DMLC_DECLARE_FIELD(forward_time).set_default(0)
+    .describe("Forward pass time predicted by performance predictor");
+    DMLC_DECLARE_FIELD(backward_time).set_default(0)
+    .describe("Backward pass time predicted by performance predictor");
     DMLC_DECLARE_FIELD(min_calib_range)
     .set_default(dmlc::optional<float>())
     .describe("The minimum scalar value in the form of float32 obtained "
@@ -116,6 +123,8 @@ struct BatchNormParam : public dmlc::Parameter<BatchNormParam> {
                 this->use_global_stats == other.use_global_stats &&
                 this->output_mean_var == other.output_mean_var && this->axis == other.axis &&
                 this->cudnn_off == other.cudnn_off &&
+                this->forward_time == other.forward_time &&
+                this->backward_time == other.backward_time &&
                 this->min_calib_range.has_value() == other.min_calib_range.has_value() &&
                 this->max_calib_range.has_value() == other.max_calib_range.has_value();
     if (this->min_calib_range.has_value() && other.min_calib_range.has_value() &&
@@ -140,6 +149,8 @@ struct hash<mxnet::op::BatchNormParam> {
     ret = dmlc::HashCombine(ret, val.use_global_stats);
     ret = dmlc::HashCombine(ret, val.output_mean_var);
     ret = dmlc::HashCombine(ret, val.axis);
+    ret = dmlc::HashCombine(ret, val.forward_time);
+    ret = dmlc::HashCombine(ret, val.backward_time);
     return ret;
   }
 };
@@ -290,10 +301,19 @@ void BatchNormCompute(const nnvm::NodeAttrs& attrs,
                              inputs.begin() + batchnorm::kInMovingMean);
   std::vector<TBlob> aux_states(inputs.begin() + batchnorm::kInMovingMean,
                                 inputs.end());
-  MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
-    BatchNormForward<xpu, DType, AccReal>(ctx, param, in_data, req, outputs,
-                                          aux_states);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
+      BatchNormForward<xpu, DType, AccReal>(ctx, param, in_data, req, outputs,
+                                            aux_states);
+    });
+  } else {
+    useconds_t time = param.forward_time;
+    usleep(time);
+  }
 }
 
 template<typename xpu>
@@ -304,9 +324,18 @@ void BatchNormGradCompute(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(inputs.size(), 8U);
   const BatchNormParam& param = nnvm::get<BatchNormParam>(attrs.parsed);
 
-  MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
-    BatchNormBackward<xpu, DType, AccReal>(ctx, param, inputs, req, outputs);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
+      BatchNormBackward<xpu, DType, AccReal>(ctx, param, inputs, req, outputs);
+    });
+  } else {
+    useconds_t time = param.backward_time;
+    usleep(time);
+  }
 }
 
 #if DMLC_USE_CXX11

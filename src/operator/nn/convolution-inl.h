@@ -43,7 +43,7 @@
 #include "../operator_common.h"
 #include "../linalg.h"
 #include "./im2col.h"
-
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -64,6 +64,8 @@ struct ConvolutionParam : public dmlc::Parameter<ConvolutionParam> {
   uint32_t num_group;
   uint64_t workspace;
   bool no_bias;
+  uint64_t forward_time;
+  uint64_t backward_time;
   dmlc::optional<int> cudnn_tune;
   bool cudnn_off;
   dmlc::optional<int> layout;
@@ -87,6 +89,10 @@ struct ConvolutionParam : public dmlc::Parameter<ConvolutionParam> {
               "`limited_workspace` strategy is used.");
     DMLC_DECLARE_FIELD(no_bias).set_default(false)
     .describe("Whether to disable bias parameter.");
+    DMLC_DECLARE_FIELD(forward_time).set_default(0)
+    .describe("Forward pass time predicted by performance predictor");
+    DMLC_DECLARE_FIELD(backward_time).set_default(0)
+    .describe("Backward pass time predicted by performance predictor");
     DMLC_DECLARE_FIELD(cudnn_tune)
     .add_enum("off", conv::kOff)
     .add_enum("limited_workspace", conv::kLimited)
@@ -120,6 +126,8 @@ struct ConvolutionParam : public dmlc::Parameter<ConvolutionParam> {
            this->num_group == other.num_group &&
            this->workspace == other.workspace &&
            this->no_bias == other.no_bias &&
+           this->forward_time == other.forward_time &&
+           this->backward_time == other.backward_time &&
            this->cudnn_tune == other.cudnn_tune &&
            this->cudnn_off == other.cudnn_off &&
            this->layout == other.layout;
@@ -146,6 +154,8 @@ struct hash<mxnet::op::ConvolutionParam> {
     ret = dmlc::HashCombine(ret, val.num_group);
     ret = dmlc::HashCombine(ret, val.workspace);
     ret = dmlc::HashCombine(ret, val.no_bias);
+    ret = dmlc::HashCombine(ret, val.forward_time);
+    ret = dmlc::HashCombine(ret, val.backward_time);
     ret = dmlc::HashCombine(ret, val.cudnn_tune);
     ret = dmlc::HashCombine(ret, val.cudnn_off);
     ret = dmlc::HashCombine(ret, val.layout);
@@ -403,8 +413,17 @@ void ConvolutionCompute(const nnvm::NodeAttrs& attrs,
   const ConvolutionParam& param = nnvm::get<ConvolutionParam>(attrs.parsed);
   MSHADOW_REAL_TYPE_SWITCH(inputs[conv::kData].type_flag_, DType, {
     ConvolutionOp<xpu, DType> op;
-    op.Init(param);
-    op.Forward(ctx, inputs, req, outputs);
+    const char *type = getenv("MXNET_EMULATOR_TYPE");
+    const bool default_emulator = (type == nullptr);
+    if (default_emulator) type = "Naive";
+    std::string strategy = type;
+    if (strategy == "Naive") {
+      op.Init(param);
+      op.Forward(ctx, inputs, req, outputs);
+    } else {
+      useconds_t time = param.forward_time;
+      usleep(time);
+    }
   });
 }
 
@@ -420,8 +439,17 @@ void ConvolutionGradCompute(const nnvm::NodeAttrs& attrs,
 
   MSHADOW_REAL_TYPE_SWITCH(out_grad.type_flag_, DType, {
     ConvolutionOp<xpu, DType> op;
-    op.Init(param);
-    op.Backward(ctx, std::vector<TBlob>{out_grad}, in_data, req, in_grad);
+    const char *type = getenv("MXNET_EMULATOR_TYPE");
+    const bool default_emulator = (type == nullptr);
+    if (default_emulator) type = "Naive";
+    std::string strategy = type;
+    if (strategy == "Naive") {
+      op.Init(param);
+      op.Backward(ctx, std::vector<TBlob>{out_grad}, in_data, req, in_grad);
+    } else {
+      useconds_t time = param.backward_time;
+      usleep(time);
+    }
   });
 }
 

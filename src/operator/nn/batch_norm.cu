@@ -703,22 +703,32 @@ void BatchNormCompute<gpu>(const nnvm::NodeAttrs& attrs,
   mxnet::TShape shape = inputs[0].shape_;
 
   param.axis = mxnet::op::batchnorm::GetRealAxis(shape, param.axis);
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
 #if MXNET_USE_CUDNN == 1
-  if (!param.use_global_stats && !param.cudnn_off
-      && param.axis == mxnet::op::batchnorm::DEFAULT_AXIS) {
-    MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
-      GetCuDNNOp<DType>(param).Forward(ctx, in_data, req, outputs, aux_states);
-    })
-  } else {
-    MSHADOW_REAL_TYPE_SWITCH_EX(dtype, DType, AccReal, {
-      BatchNormForward<gpu, DType, AccReal>(ctx, param, in_data, req, outputs, aux_states);
-    })
-  }
+    if (!param.use_global_stats && !param.cudnn_off
+        && param.axis == mxnet::op::batchnorm::DEFAULT_AXIS) {
+      MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
+        GetCuDNNOp<DType>(param).Forward(ctx, in_data, req, outputs, aux_states);
+      })
+    } else {
+      MSHADOW_REAL_TYPE_SWITCH_EX(dtype, DType, AccReal, {
+        BatchNormForward<gpu, DType, AccReal>(ctx, param, in_data, req, outputs, aux_states);
+      })
+    }
 #else
-  MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
-    BatchNormForward<gpu, DType, AccReal>(ctx, param, in_data, req, outputs, aux_states);
-  });
+    MSHADOW_REAL_TYPE_SWITCH_EX(inputs[0].type_flag_, DType, AccReal, {
+      BatchNormForward<gpu, DType, AccReal>(ctx, param, in_data, req, outputs, aux_states);
+    });
 #endif
+  } else {
+    useconds_t time = param.forward_time;
+    usleep(time);
+  }
+}
 }
 
 template<>
@@ -732,22 +742,31 @@ void BatchNormGradCompute<gpu>(const nnvm::NodeAttrs& attrs,
   mxnet::TShape shape = inputs[0].shape_;
 
   param.axis = mxnet::op::batchnorm::GetRealAxis(shape, param.axis);
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
 #if MXNET_USE_CUDNN == 1
-  if (!param.use_global_stats && !param.cudnn_off
-      && param.axis == mxnet::op::batchnorm::DEFAULT_AXIS) {
-    MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
-      GetCuDNNOp<DType>(param).Backward(ctx, inputs, req, outputs);
-    })
-  } else {
+    if (!param.use_global_stats && !param.cudnn_off
+        && param.axis == mxnet::op::batchnorm::DEFAULT_AXIS) {
+      MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
+        GetCuDNNOp<DType>(param).Backward(ctx, inputs, req, outputs);
+      })
+    } else {
+      MSHADOW_REAL_TYPE_SWITCH_EX(dtype, DType, AccReal, {
+        BatchNormBackward<gpu, DType, AccReal>(ctx, param, inputs, req, outputs);
+      })
+    }
+#else
     MSHADOW_REAL_TYPE_SWITCH_EX(dtype, DType, AccReal, {
       BatchNormBackward<gpu, DType, AccReal>(ctx, param, inputs, req, outputs);
-    })
-  }
-#else
-  MSHADOW_REAL_TYPE_SWITCH_EX(dtype, DType, AccReal, {
-    BatchNormBackward<gpu, DType, AccReal>(ctx, param, inputs, req, outputs);
-  });
+    });
 #endif
+  } else {
+    useconds_t time = param.backward_time;
+    usleep(time);
+  }
 }
 
 NNVM_REGISTER_OP(BatchNorm)

@@ -39,6 +39,7 @@
 #include "mxnet_op.h"
 #include "./tensor/init_op.h"
 #include "./tensor/util/tensor_util-inl.h"
+#include <unistd.h>
 
 namespace mxnet {
 namespace op {
@@ -365,18 +366,30 @@ inline void MultiSGDMomUpdate(const nnvm::NodeAttrs& attrs,
                               const std::vector<TBlob> &outputs) {
   using namespace mxnet_op;
   Stream<xpu>* s = ctx.get_stream<xpu>();
-  MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, DType, {
-    using MPDType = typename MPTypeChooser<DType>::type;
-    MultiSGDKernelParam<DType, MPDType> param =
-      FillMultiSGDMomKernelParam<xpu,
-                                 DType,
-                                 MPDType,
-                                 input_stride>(attrs, ctx, inputs, outputs);
-    Kernel<MultiSGDKernel<MPDType,
-                          true,
-                          !std::is_same<DType, MPDType>::value>,
-                          xpu>::Launch(s, param.max_size, param, req[0]);
-  });
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, DType, {
+      using MPDType = typename MPTypeChooser<DType>::type;
+      MultiSGDKernelParam<DType, MPDType> param =
+        FillMultiSGDMomKernelParam<xpu,
+                                  DType,
+                                  MPDType,
+                                  input_stride>(attrs, ctx, inputs, outputs);
+      Kernel<MultiSGDKernel<MPDType,
+                            true,
+                            !std::is_same<DType, MPDType>::value>,
+                            xpu>::Launch(s, param.max_size, param, req[0]);
+    });
+  } else if (strategy == "V100") {
+    useconds_t time = 200;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 1500;
+    usleep(time);
+  }
 }
 
 struct SGDKernel {
@@ -988,19 +1001,31 @@ inline void SGDMomUpdateEx(const nnvm::NodeAttrs& attrs,
   const bool valid_grad = grad.storage_type() == kRowSparseStorage;
   const bool lazy_update = param.lazy_update;
   CHECK(w_stype == out_stype) << "Inconsistent weight stype and output stype";
-  if (valid_weight && valid_grad && m_stype == w_stype) {
-    if (lazy_update) {
-      // rsp grad && m.stype = w.stype && lazy_update = true -> lazy update
-      SGDMomLazyUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
-    } else {
-      // rsp grad && m.stype = w.stype && lazy_update = false -> std update
+  const char *type = getenv("MXNET_EMULATOR_TYPE");
+  const bool default_emulator = (type == nullptr);
+  if (default_emulator) type = "Naive";
+  std::string strategy = type;
+  if (strategy == "Naive") {
+    if (valid_weight && valid_grad && m_stype == w_stype) {
+      if (lazy_update) {
+        // rsp grad && m.stype = w.stype && lazy_update = true -> lazy update
+        SGDMomLazyUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
+      } else {
+        // rsp grad && m.stype = w.stype && lazy_update = false -> std update
+        SGDMomStdUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
+      }
+    } else if (w_stype == kRowSparseStorage && valid_grad && m_stype == kDefaultStorage) {
+      // rsp weight, rsp grad, dns state -> std update
       SGDMomStdUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
+    } else {
+      LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
     }
-  } else if (w_stype == kRowSparseStorage && valid_grad && m_stype == kDefaultStorage) {
-    // rsp weight, rsp grad, dns state -> std update
-    SGDMomStdUpdateRspImpl<xpu>(param, ctx, weight, grad, mom, req[0], &out);
-  } else {
-    LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
+  } else if (strategy == "V100") {
+    useconds_t time = 200;
+    usleep(time);
+  } else if (strategy == "K80") {
+    useconds_t time = 1500;
+    usleep(time);
   }
 }
 
